@@ -1,51 +1,7 @@
 
-import { CrowdData, CrowdLevel } from '../types';
+// Helper functions for the app
 
-// Get current crowd level based on time
-export const getCurrentCrowdLevel = (crowdData: CrowdData): CrowdLevel => {
-  const currentHour = new Date().getHours();
-  const timeKey = `${currentHour.toString().padStart(2, '0')}:00`;
-  
-  // Find the closest time key
-  const times = Object.keys(crowdData);
-  let closestTime = times[0];
-  let smallestDiff = 24;
-  
-  for (const time of times) {
-    const [hours] = time.split(':').map(Number);
-    const diff = Math.abs(hours - currentHour);
-    if (diff < smallestDiff) {
-      smallestDiff = diff;
-      closestTime = time;
-    }
-  }
-  
-  const crowdPercentage = crowdData[closestTime];
-  
-  if (crowdPercentage <= 40) return 'low';
-  if (crowdPercentage <= 70) return 'medium';
-  return 'high';
-};
-
-// Get best time to visit (lowest crowd time)
-export const getBestTimeToVisit = (crowdData: CrowdData): string => {
-  let bestTime = '';
-  let lowestCrowd = 100;
-  
-  for (const [time, level] of Object.entries(crowdData)) {
-    if (level < lowestCrowd) {
-      lowestCrowd = level;
-      bestTime = time;
-    }
-  }
-  
-  // Format time for display
-  const [hour] = bestTime.split(':');
-  const hourNum = parseInt(hour, 10);
-  return hourNum < 12 ? `${hourNum} AM` : hourNum === 12 ? '12 PM' : `${hourNum - 12} PM`;
-};
-
-// Format price in Indian Rupees
+// Format price in INR currency format
 export const formatPrice = (price: number): string => {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
@@ -54,79 +10,61 @@ export const formatPrice = (price: number): string => {
   }).format(price);
 };
 
-// Calculate distance between two coordinates (in km)
-export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-  const R = 6371; // Radius of the earth in km
-  const dLat = deg2rad(lat2 - lat1);
-  const dLon = deg2rad(lon2 - lon1);
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2); 
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-  const d = R * c; // Distance in km
-  return Math.round(d);
-};
-
-const deg2rad = (deg: number): number => {
-  return deg * (Math.PI/180);
-};
-
-// Get crowd level color class
-export const getCrowdLevelClass = (level: CrowdLevel): string => {
+// Get CSS class based on crowd level
+export const getCrowdLevelClass = (level: string): string => {
   switch (level) {
     case 'low':
-      return 'crowd-low';
+      return 'text-crowd-low';
     case 'medium':
-      return 'crowd-medium';
+      return 'text-crowd-medium';
     case 'high':
-      return 'crowd-high';
+      return 'text-crowd-high';
     default:
       return '';
   }
 };
 
-// Get crowd level color for backgrounds
-export const getCrowdLevelBgClass = (level: CrowdLevel): string => {
+// Get background CSS class based on crowd level
+export const getCrowdLevelBgClass = (level: string): string => {
   switch (level) {
     case 'low':
       return 'bg-green-100 text-green-800';
     case 'medium':
-      return 'bg-amber-100 text-amber-800';
+      return 'bg-yellow-100 text-yellow-800';
     case 'high':
       return 'bg-red-100 text-red-800';
     default:
-      return '';
+      return 'bg-gray-100 text-gray-800';
   }
 };
 
-// Get crowd level icon name
-export const getCrowdLevelIcon = (level: CrowdLevel): string => {
-  switch (level) {
-    case 'low':
-      return 'users';
-    case 'medium':
-      return 'users';
-    case 'high':
-      return 'users';
-    default:
-      return 'users';
+// Format time from 24-hour format to 12-hour format
+export const formatTime = (time: string): string => {
+  const [hours] = time.split(':').map(Number);
+  
+  if (hours === 0) return '12 AM';
+  if (hours === 12) return '12 PM';
+  
+  return hours > 12 ? `${hours - 12} PM` : `${hours} AM`;
+};
+
+// Get today's date formatted as YYYY-MM-DD
+export const getTodayFormatted = (): string => {
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+};
+
+// Calculate days between two dates
+export const daysBetween = (date1: Date, date2: Date): number => {
+  const oneDay = 24 * 60 * 60 * 1000; // hours*minutes*seconds*milliseconds
+  const diffDays = Math.round(Math.abs((date1.getTime() - date2.getTime()) / oneDay));
+  return diffDays;
+};
+
+// Truncate string to a certain length
+export const truncateString = (str: string, num: number): string => {
+  if (str.length <= num) {
+    return str;
   }
-};
-
-// Validate email format
-export const isValidEmail = (email: string): boolean => {
-  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return re.test(email);
-};
-
-// Validate phone number (Indian format - 10 digits)
-export const isValidPhone = (phone: string): boolean => {
-  const re = /^[6-9]\d{9}$/;
-  return re.test(phone);
-};
-
-// Validate password strength
-export const isValidPassword = (password: string): boolean => {
-  return password.length >= 8 && /[!@#$%^&*(),.?":{}|<>]/.test(password);
+  return str.slice(0, num) + '...';
 };

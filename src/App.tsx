@@ -19,6 +19,7 @@ import Destinations from "./pages/Destinations";
 import DestinationDetail from "./pages/DestinationDetail";
 import About from "./pages/About";
 import Booking from "./pages/Booking";
+import MyBookings from "./pages/MyBookings";
 
 const queryClient = new QueryClient();
 
@@ -64,7 +65,7 @@ const App = () => (
                   path="/bookings" 
                   element={
                     <RouteGuard requireAuth={true}>
-                      <div>My Bookings (To be implemented)</div>
+                      <MyBookings />
                     </RouteGuard>
                   } 
                 />

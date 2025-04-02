@@ -1,33 +1,45 @@
 
-export interface User {
+export type User = {
   id: string;
-  fullName: string;
   email: string;
-  phone: string;
-  password: string;
-  homeLocation: {
-    country: string;
-    state: string;
-    city: string;
-  };
+  password: string; // Note: In a real app, this would be hashed and not stored in the front end
+  fullName: string;
+  bookings: string[]; // IDs of bookings
   profileComplete: boolean;
   profileData?: {
-    address?: {
-      street: string;
-      landmark: string;
-      pincode: string;
-    };
-    preferences?: string[];
-    profilePicture?: string;
+    phoneNumber: string;
+    address: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    emergencyContact: string;
+    preferences?: {
+      notifications: boolean;
+      newsletter: boolean;
+    }
   };
-  bookings: string[];
-}
+};
 
-export interface CrowdData {
-  [time: string]: number;
-}
+export type Booking = {
+  id: string;
+  destinationId: string;
+  userId: string;
+  checkIn: string;
+  timeSlot: string;
+  visitors: number;
+  ticketType: string;
+  totalAmount: number;
+  status: 'confirmed' | 'cancelled' | 'pending';
+  createdAt: string;
+};
 
-export interface Destination {
+export type CrowdLevel = 'low' | 'medium' | 'high';
+
+export type CrowdData = {
+  [time: string]: number; // Map of time to crowd percentage (0-100)
+};
+
+export type Destination = {
   id: string;
   name: string;
   city: string;
@@ -37,66 +49,14 @@ export interface Destination {
   crowdData: CrowdData;
   price: number;
   rating: number;
-  distance?: number;
   coordinates: {
     lat: number;
     lng: number;
   };
-  hotels?: Hotel[];
-  activities?: Activity[];
-  bestTimeToVisit: string;
-}
+  bestTimeToVisit?: string;
+};
 
-export interface Hotel {
-  id: string;
-  name: string;
-  image: string;
-  price: number;
-  rating: number;
-  rooms: {
-    [type: string]: {
-      available: number;
-      maxGuests: number;
-      price: number;
-    };
-  };
-}
-
-export interface Activity {
-  id: string;
-  name: string;
-  price: number;
-  duration: string;
-  description: string;
-}
-
-export interface Transport {
-  id: string;
-  type: string;
-  capacity: number;
-  baseFare: number;
-  perKmRate: number;
-}
-
-export interface Booking {
-  id: string;
-  userId: string;
-  destinationId: string;
-  checkIn: string;
-  checkOut: string;
-  guests: number;
-  hotelId?: string;
-  roomType?: string;
-  transportType?: string;
-  activities?: string[];
-  totalAmount: number;
-  status: 'upcoming' | 'completed' | 'cancelled';
-  createdAt: string;
-}
-
-export type CrowdLevel = 'low' | 'medium' | 'high';
-
-export interface AuthContextType {
+export type AuthContextType = {
   currentUser: User | null;
   login: (email: string, password: string, rememberMe: boolean) => Promise<void>;
   signup: (userData: Omit<User, 'id' | 'bookings' | 'profileComplete'>) => Promise<void>;
@@ -105,9 +65,9 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-}
+};
 
-export interface DestinationContextType {
+export type DestinationContextType = {
   destinations: Destination[];
   filteredDestinations: Destination[];
   loading: boolean;
@@ -125,14 +85,14 @@ export interface DestinationContextType {
   getBestTimeToVisit: (crowdData: CrowdData) => string;
   clearFilters: () => void;
   getDestinationById: (id: string) => Destination | undefined;
-}
+};
 
-export interface BookingContextType {
+export type BookingContextType = {
   bookings: Booking[];
-  addBooking: (booking: Omit<Booking, 'id' | 'createdAt'>) => Promise<string>;
+  addBooking: (bookingData: Omit<Booking, 'id' | 'createdAt'>) => Promise<string>;
   cancelBooking: (bookingId: string) => Promise<void>;
   getBookingById: (bookingId: string) => Booking | undefined;
   getUserBookings: (userId: string) => Booking[];
   loading: boolean;
   error: string | null;
-}
+};

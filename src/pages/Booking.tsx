@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 
 const Booking: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { getDestinationById } = useDestinations();
+  const { getDestinationById, getBestTimeToVisit, getCurrentCrowdLevel } = useDestinations();
   const { currentUser } = useAuth();
   const { addBooking, loading } = useBookings();
   const navigate = useNavigate();
@@ -44,6 +44,10 @@ const Booking: React.FC = () => {
     premium: (destination?.price || 0) * 1.5,
     guided: (destination?.price || 0) * 2
   };
+  
+  // Get the best time to visit and current crowd level
+  const bestTimeToVisit = destination ? getBestTimeToVisit(destination.crowdData) : '';
+  const crowdLevel = destination ? getCurrentCrowdLevel(destination.crowdData) : 'low';
 
   useEffect(() => {
     if (!destination) return;
@@ -85,7 +89,7 @@ const Booking: React.FC = () => {
         visitors,
         ticketType,
         totalAmount: totalPrice,
-        status: 'confirmed'
+        status: 'confirmed' as const
       };
       
       await addBooking(bookingData);
@@ -271,11 +275,11 @@ const Booking: React.FC = () => {
               <CardContent className="space-y-2">
                 <div className="flex items-center">
                   <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <p className="text-sm">Lowest crowds at: <span className="font-medium">7 AM - 9 AM</span></p>
+                  <p className="text-sm">Lowest crowds at: <span className="font-medium">{bestTimeToVisit}</span></p>
                 </div>
                 <div className="flex items-center">
                   <Users className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <p className="text-sm">Current crowd level: <span className="font-medium">Low</span></p>
+                  <p className="text-sm">Current crowd level: <span className="font-medium capitalize">{crowdLevel}</span></p>
                 </div>
               </CardContent>
             </Card>
