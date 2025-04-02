@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
 interface RouteGuardProps {
   children: React.ReactNode;
@@ -42,11 +43,18 @@ const RouteGuard: React.FC<RouteGuardProps> = ({
     };
 
     checkRouteAccess();
-  }, [isAuthenticated, requireAuth, currentUser, requireProfileComplete, isLoading]);
+  }, [isAuthenticated, requireAuth, currentUser, requireProfileComplete, isLoading, toast]);
 
   if (isLoading) {
-    // Loading state - could return a loader component here
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    // Improved loading state with spinner
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading your information...</p>
+        </div>
+      </div>
+    );
   }
 
   if (requireAuth && !isAuthenticated) {

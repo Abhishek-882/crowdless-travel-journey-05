@@ -67,6 +67,10 @@ const SearchFilters: React.FC = () => {
     setPriceRange([0, 5000]);
   };
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
   // Count active filters
   const activeFilterCount = 
     (filters.crowdLevel ? 1 : 0) + 
@@ -83,7 +87,8 @@ const SearchFilters: React.FC = () => {
               type="text"
               placeholder="Search by name, city or state..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
+              autoFocus={false}
               className="pl-10"
             />
             <MapPin className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
@@ -210,7 +215,8 @@ const SearchFilters: React.FC = () => {
               type="text"
               placeholder="Search destinations..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
+              autoFocus={false}
               className="pl-10"
             />
             <MapPin className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />

@@ -18,6 +18,7 @@ import ProfileCompletion from "./pages/ProfileCompletion";
 import Destinations from "./pages/Destinations";
 import DestinationDetail from "./pages/DestinationDetail";
 import About from "./pages/About";
+import Booking from "./pages/Booking";
 
 const queryClient = new QueryClient();
 
@@ -54,7 +55,7 @@ const App = () => (
                   path="/booking/:id" 
                   element={
                     <RouteGuard requireAuth={true} requireProfileComplete={true}>
-                      <div>Booking Page (To be implemented)</div>
+                      <Booking />
                     </RouteGuard>
                   } 
                 />
