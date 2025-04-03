@@ -68,3 +68,20 @@ export const truncateString = (str: string, num: number): string => {
   }
   return str.slice(0, num) + '...';
 };
+
+// Validate email format
+export const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+// Validate password strength
+export const isValidPassword = (password: string): boolean => {
+  return password.length >= 8;
+};
+
+// Validate phone number
+export const isValidPhone = (phone: string): boolean => {
+  const phoneRegex = /^[0-9]{10}$/;
+  return phoneRegex.test(phone);
+};

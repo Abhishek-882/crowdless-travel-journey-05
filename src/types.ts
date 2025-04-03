@@ -6,6 +6,7 @@ export type User = {
   fullName: string;
   bookings: string[]; // IDs of bookings
   profileComplete: boolean;
+  isPremium?: boolean;
   profileData?: {
     phoneNumber: string;
     address: string;
@@ -39,6 +40,58 @@ export type CrowdData = {
   [time: string]: number; // Map of time to crowd percentage (0-100)
 };
 
+export type HotelType = {
+  id: string;
+  name: string;
+  destinationId: string;
+  pricePerPerson: number;
+  rating: number;
+  type: 'budget' | 'standard' | 'luxury';
+  amenities: string[];
+  image: string;
+};
+
+export type TransportType = {
+  id: string;
+  name: string;
+  type: 'bus' | 'train' | 'flight' | 'car';
+  pricePerPerson: number;
+  travelTime: number; // in hours
+  amenities: string[];
+};
+
+export type GuideType = {
+  id: string;
+  name: string;
+  destinationId: string;
+  pricePerDay: number;
+  languages: string[];
+  experience: number; // in years
+  rating: number;
+  image?: string;
+};
+
+export type TripPlan = {
+  id: string;
+  userId: string;
+  selectedDestinations: string[]; // Array of destination IDs
+  selectedGuides: string[]; // Array of guide IDs
+  selectedHotels: string[]; // Array of hotel IDs
+  selectedTransport: string; // Transport ID
+  startDate: string;
+  endDate: string;
+  numberOfDays: number;
+  numberOfPeople: number;
+  budget: number;
+  totalCost: number;
+  destinationsCost: number;
+  hotelsCost: number;
+  transportCost: number;
+  guidesCost: number;
+  status: 'draft' | 'confirmed' | 'cancelled';
+  createdAt: string;
+};
+
 export type Destination = {
   id: string;
   name: string;
@@ -62,6 +115,7 @@ export type AuthContextType = {
   signup: (userData: Omit<User, 'id' | 'bookings' | 'profileComplete'>) => Promise<void>;
   logout: () => void;
   completeProfile: (profileData: User['profileData']) => Promise<void>;
+  upgradeToPremium: () => Promise<void>;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
@@ -95,4 +149,33 @@ export type BookingContextType = {
   getUserBookings: (userId: string) => Booking[];
   loading: boolean;
   error: string | null;
+};
+
+export type TripPlanningContextType = {
+  hotels: HotelType[];
+  transports: TransportType[];
+  guides: GuideType[];
+  tripPlans: TripPlan[];
+  loading: boolean;
+  error: string | null;
+  getHotelsByDestination: (destinationId: string) => HotelType[];
+  getGuidesByDestination: (destinationId: string) => GuideType[];
+  calculateTripCost: (options: {
+    destinationIds: string[];
+    guideIds: string[];
+    hotelType: 'budget' | 'standard' | 'luxury';
+    transportType: 'bus' | 'train' | 'flight' | 'car';
+    numberOfDays: number;
+    numberOfPeople: number;
+  }) => {
+    destinationsCost: number;
+    hotelsCost: number;
+    transportCost: number;
+    guidesCost: number;
+    totalCost: number;
+  };
+  saveTripPlan: (tripPlanData: Omit<TripPlan, 'id' | 'createdAt'>) => Promise<string>;
+  getUserTripPlans: (userId: string) => TripPlan[];
+  getTripPlanById: (tripPlanId: string) => TripPlan | undefined;
+  cancelTripPlan: (tripPlanId: string) => Promise<void>;
 };

@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { DestinationProvider } from "./context/DestinationContext";
 import { BookingProvider } from "./context/BookingContext";
+import { TripPlanningProvider } from "./context/TripPlanningContext";
 import RouteGuard from "./components/RouteGuard";
 
 // Pages
@@ -20,6 +21,8 @@ import DestinationDetail from "./pages/DestinationDetail";
 import About from "./pages/About";
 import Booking from "./pages/Booking";
 import MyBookings from "./pages/MyBookings";
+import TripPlanner from "./pages/TripPlanner";
+import PremiumFeatures from "./pages/PremiumFeatures";
 
 const queryClient = new QueryClient();
 
@@ -28,62 +31,74 @@ const App = () => (
     <AuthProvider>
       <DestinationProvider>
         <BookingProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                {/* Public Routes */}
-                <Route path="/" element={<Index />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/destinations" element={<Destinations />} />
-                <Route path="/destinations/:id" element={<DestinationDetail />} />
-                
-                {/* Protected Routes (Require Authentication) */}
-                <Route 
-                  path="/profile-completion" 
-                  element={
-                    <RouteGuard requireAuth={true}>
-                      <ProfileCompletion />
-                    </RouteGuard>
-                  } 
-                />
-                
-                {/* Routes that require completed profile */}
-                <Route 
-                  path="/booking/:id" 
-                  element={
-                    <RouteGuard requireAuth={true} requireProfileComplete={true}>
-                      <Booking />
-                    </RouteGuard>
-                  } 
-                />
-                
-                <Route 
-                  path="/bookings" 
-                  element={
-                    <RouteGuard requireAuth={true}>
-                      <MyBookings />
-                    </RouteGuard>
-                  } 
-                />
-                
-                <Route 
-                  path="/profile" 
-                  element={
-                    <RouteGuard requireAuth={true}>
-                      <div>Profile Page (To be implemented)</div>
-                    </RouteGuard>
-                  } 
-                />
-                
-                {/* Catch-all Route */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
+          <TripPlanningProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Routes>
+                  {/* Public Routes */}
+                  <Route path="/" element={<Index />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/signup" element={<Signup />} />
+                  <Route path="/about" element={<About />} />
+                  <Route path="/destinations" element={<Destinations />} />
+                  <Route path="/destinations/:id" element={<DestinationDetail />} />
+                  <Route path="/premium" element={<PremiumFeatures />} />
+                  
+                  {/* Protected Routes (Require Authentication) */}
+                  <Route 
+                    path="/profile-completion" 
+                    element={
+                      <RouteGuard requireAuth={true}>
+                        <ProfileCompletion />
+                      </RouteGuard>
+                    } 
+                  />
+                  
+                  {/* Routes that require completed profile */}
+                  <Route 
+                    path="/booking/:id" 
+                    element={
+                      <RouteGuard requireAuth={true} requireProfileComplete={true}>
+                        <Booking />
+                      </RouteGuard>
+                    } 
+                  />
+                  
+                  <Route 
+                    path="/bookings" 
+                    element={
+                      <RouteGuard requireAuth={true}>
+                        <MyBookings />
+                      </RouteGuard>
+                    } 
+                  />
+
+                  <Route 
+                    path="/trip-planner" 
+                    element={
+                      <RouteGuard requireAuth={true} requireProfileComplete={true}>
+                        <TripPlanner />
+                      </RouteGuard>
+                    } 
+                  />
+                  
+                  <Route 
+                    path="/profile" 
+                    element={
+                      <RouteGuard requireAuth={true}>
+                        <div>Profile Page (To be implemented)</div>
+                      </RouteGuard>
+                    } 
+                  />
+                  
+                  {/* Catch-all Route */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+            </TooltipProvider>
+          </TripPlanningProvider>
         </BookingProvider>
       </DestinationProvider>
     </AuthProvider>

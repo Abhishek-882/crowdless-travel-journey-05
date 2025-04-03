@@ -1,7 +1,8 @@
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+// src/context/AuthContext.tsx
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, AuthContextType } from '../types';
+import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -12,113 +13,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Initialize localStorage on first load
+  // Check if there's a logged-in user in localStorage
   useEffect(() => {
-    try {
-      // Check if users array exists in localStorage
-      const users = localStorage.getItem('users');
-      if (!users) {
-        localStorage.setItem('users', JSON.stringify([]));
+    const loadUser = () => {
+      try {
+        const storedUser = localStorage.getItem('currentUser');
+        if (storedUser) {
+          setCurrentUser(JSON.parse(storedUser));
+        }
+      } catch (err) {
+        console.error('Error loading user: ', err);
+      } finally {
+        setIsLoading(false);
       }
+    };
 
-      // Check if there's a current user session
-      const storedUser = localStorage.getItem('currentUser');
-      if (storedUser) {
-        setCurrentUser(JSON.parse(storedUser));
-      }
-    } catch (err) {
-      console.error('Error initializing auth:', err);
-      toast({
-        title: 'Error',
-        description: 'There was an error loading your session.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    loadUser();
   }, []);
 
-  const login = async (email: string, password: string, rememberMe: boolean) => {
+  const login = async (email: string, password: string, rememberMe: boolean): Promise<void> => {
     setError(null);
     setIsLoading(true);
 
     try {
-      // Simulate network request
+      // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      const users = JSON.parse(localStorage.getItem('users') || '[]') as User[];
-      const user = users.find((u) => u.email === email && u.password === password);
+      // Get users from localStorage
+      const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
+      
+      // Find user with matching email
+      const user = users.find((u) => u.email === email);
 
       if (!user) {
-        throw new Error('Invalid credentials');
+        throw new Error('User not found');
       }
 
-      // Store user in localStorage
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      
-      // Save email for "remember me" functionality
-      if (rememberMe) {
-        localStorage.setItem('rememberedEmail', email);
-      } else {
-        localStorage.removeItem('rememberedEmail');
+      // Check password
+      if (user.password !== password) {
+        throw new Error('Incorrect password');
       }
-      
+
+      // Save current user
       setCurrentUser(user);
-      
-      toast({
-        title: 'Success!',
-        description: 'You have successfully logged in.',
-      });
+      localStorage.setItem('currentUser', JSON.stringify(user));
 
+      toast({
+        title: 'Success',
+        description: 'Welcome back!',
+      });
     } catch (err) {
-      setError((err as Error).message);
+      const errorMsg = (err as Error).message;
+      setError(errorMsg);
       toast({
         title: 'Login Failed',
-        description: (err as Error).message,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const signup = async (userData: Omit<User, 'id' | 'bookings' | 'profileComplete'>) => {
-    setError(null);
-    setIsLoading(true);
-    
-    try {
-      // Simulate network request
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      const users = JSON.parse(localStorage.getItem('users') || '[]') as User[];
-      
-      // Check if email already exists
-      if (users.some((u) => u.email === userData.email)) {
-        throw new Error('This email is already registered');
-      }
-
-      // Create new user
-      const newUser: User = {
-        ...userData,
-        id: `user_${uuidv4()}`,
-        bookings: [],
-        profileComplete: false,
-      };
-
-      // Save to localStorage
-      users.push(newUser);
-      localStorage.setItem('users', JSON.stringify(users));
-      
-      toast({
-        title: 'Success!',
-        description: 'Your account has been created. Please log in.',
-      });
-
-    } catch (err) {
-      setError((err as Error).message);
-      toast({
-        title: 'Signup Failed',
-        description: (err as Error).message,
+        description: errorMsg,
         variant: 'destructive',
       });
       throw err;
@@ -127,58 +76,154 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
+  const signup = async (userData: Omit<User, 'id' | 'bookings' | 'profileComplete'>): Promise<void> => {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Get users from localStorage
+      const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
+
+      // Check if user already exists
+      if (users.some((u) => u.email === userData.email)) {
+        throw new Error('Email already in use');
+      }
+
+      // Create new user
+      const newUser: User = {
+        ...userData,
+        id: `user_${uuidv4()}`,
+        bookings: [],
+        profileComplete: false,
+        isPremium: false
+      };
+
+      // Add to users array
+      const updatedUsers = [...users, newUser];
+      localStorage.setItem('users', JSON.stringify(updatedUsers));
+
+      // Set as current user
+      setCurrentUser(newUser);
+      localStorage.setItem('currentUser', JSON.stringify(newUser));
+
+      toast({
+        title: 'Account Created',
+        description: 'Your account has been created successfully.',
+      });
+    } catch (err) {
+      const errorMsg = (err as Error).message;
+      setError(errorMsg);
+      toast({
+        title: 'Signup Failed',
+        description: errorMsg,
+        variant: 'destructive',
+      });
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = (): void => {
+    // Remove current user from localStorage and state
     localStorage.removeItem('currentUser');
     setCurrentUser(null);
     toast({
-      title: 'Logged out',
+      title: 'Logged Out',
       description: 'You have been successfully logged out.',
     });
   };
 
-  const completeProfile = async (profileData: User['profileData']) => {
-    if (!currentUser) {
-      throw new Error('No user logged in');
-    }
-
+  const completeProfile = async (profileData: User['profileData']): Promise<void> => {
+    setError(null);
     setIsLoading(true);
-    
+
     try {
-      // Simulate network request
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      const users = JSON.parse(localStorage.getItem('users') || '[]') as User[];
-      const userIndex = users.findIndex((u) => u.id === currentUser.id);
-      
-      if (userIndex === -1) {
-        throw new Error('User not found');
+      if (!currentUser) {
+        throw new Error('No user is logged in');
       }
-      
+
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       // Update user profile
       const updatedUser: User = {
-        ...users[userIndex],
+        ...currentUser,
         profileComplete: true,
-        profileData: profileData,
+        profileData,
       };
-      
-      // Update in users array
-      users[userIndex] = updatedUser;
-      localStorage.setItem('users', JSON.stringify(users));
-      
-      // Update current user
-      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-      setCurrentUser(updatedUser);
-      
-      toast({
-        title: 'Profile Updated',
-        description: 'Your profile has been successfully completed!',
-      });
 
+      // Update current user in state and localStorage
+      setCurrentUser(updatedUser);
+      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+
+      // Update user in users array
+      const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
+      const updatedUsers = users.map((u) => 
+        u.id === updatedUser.id ? updatedUser : u
+      );
+      localStorage.setItem('users', JSON.stringify(updatedUsers));
+
+      toast({
+        title: 'Profile Completed',
+        description: 'Your profile has been completed successfully.',
+      });
     } catch (err) {
-      setError((err as Error).message);
+      const errorMsg = (err as Error).message;
+      setError(errorMsg);
       toast({
         title: 'Error',
-        description: (err as Error).message,
+        description: errorMsg,
+        variant: 'destructive',
+      });
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const upgradeToPremium = async (): Promise<void> => {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      if (!currentUser) {
+        throw new Error('No user is logged in');
+      }
+
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Update user premium status
+      const updatedUser: User = {
+        ...currentUser,
+        isPremium: true,
+      };
+
+      // Update current user in state and localStorage
+      setCurrentUser(updatedUser);
+      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+
+      // Update user in users array
+      const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
+      const updatedUsers = users.map((u) => 
+        u.id === updatedUser.id ? updatedUser : u
+      );
+      localStorage.setItem('users', JSON.stringify(updatedUsers));
+
+      toast({
+        title: 'Premium Activated',
+        description: 'You are now a premium user with access to all features.',
+      });
+    } catch (err) {
+      const errorMsg = (err as Error).message;
+      setError(errorMsg);
+      toast({
+        title: 'Error',
+        description: errorMsg,
         variant: 'destructive',
       });
       throw err;
@@ -191,13 +236,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider
       value={{
         currentUser,
+        isAuthenticated: !!currentUser,
+        isLoading,
+        error,
         login,
         signup,
         logout,
         completeProfile,
-        isAuthenticated: !!currentUser,
-        isLoading,
-        error,
+        upgradeToPremium,
       }}
     >
       {children}

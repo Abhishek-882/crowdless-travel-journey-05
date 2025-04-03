@@ -1,297 +1,252 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Layout from '../components/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Upload } from 'lucide-react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { useToast } from '@/hooks/use-toast';
-
-const travelPreferences = [
-  { id: 'adventure', label: 'Adventure' },
-  { id: 'beach', label: 'Beach' },
-  { id: 'mountains', label: 'Mountains' },
-  { id: 'city', label: 'City Exploration' },
-  { id: 'cultural', label: 'Cultural Experiences' },
-  { id: 'food', label: 'Food & Cuisine' },
-  { id: 'nature', label: 'Nature & Wildlife' },
-  { id: 'relaxation', label: 'Relaxation' },
-  { id: 'historical', label: 'Historical Sites' },
-  { id: 'shopping', label: 'Shopping' },
-];
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Loader2 } from 'lucide-react';
 
 const ProfileCompletion: React.FC = () => {
-  const { currentUser, completeProfile, isAuthenticated } = useAuth();
+  const { completeProfile, currentUser } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [submitting, setSubmitting] = useState(false);
   
-  const [formData, setFormData] = useState({
-    street: '',
-    landmark: '',
-    pincode: '',
-    preferences: [] as string[],
-    profilePicture: '',
-  });
-  
-  const [formErrors, setFormErrors] = useState({
-    street: '',
-    landmark: '',
-    pincode: '',
-    preferences: '',
-  });
-  
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-  
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/login');
-    }
-  }, [isAuthenticated, navigate]);
-  
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [zipCode, setZipCode] = useState('');
+  const [emergencyContact, setEmergencyContact] = useState('');
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [newsletterEnabled, setNewsletterEnabled] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
   const validateForm = () => {
-    const errors = {
-      street: '',
-      landmark: '',
-      pincode: '',
-      preferences: '',
-    };
+    const newErrors: Record<string, string> = {};
     
-    if (!formData.street.trim()) {
-      errors.street = 'Street address is required';
+    if (!phoneNumber.trim()) {
+      newErrors.phoneNumber = 'Phone number is required';
+    } else if (!/^\d{10}$/.test(phoneNumber)) {
+      newErrors.phoneNumber = 'Phone number must be 10 digits';
     }
     
-    if (!formData.landmark.trim()) {
-      errors.landmark = 'Landmark is required';
+    if (!address.trim()) {
+      newErrors.address = 'Address is required';
     }
     
-    if (!formData.pincode.trim()) {
-      errors.pincode = 'Pincode is required';
-    } else if (!/^\d{6}$/.test(formData.pincode)) {
-      errors.pincode = 'Pincode must be 6 digits';
+    if (!city.trim()) {
+      newErrors.city = 'City is required';
     }
     
-    if (formData.preferences.length === 0) {
-      errors.preferences = 'Please select at least one preference';
+    if (!state.trim()) {
+      newErrors.state = 'State is required';
     }
     
-    setFormErrors(errors);
-    return !Object.values(errors).some((error) => error !== '');
+    if (!zipCode.trim()) {
+      newErrors.zipCode = 'ZIP code is required';
+    } else if (!/^\d{6}$/.test(zipCode)) {
+      newErrors.zipCode = 'ZIP code must be 6 digits';
+    }
+    
+    if (!emergencyContact.trim()) {
+      newErrors.emergencyContact = 'Emergency contact is required';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
-  
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    
-    if (formErrors[name as keyof typeof formErrors]) {
-      setFormErrors((prev) => ({ ...prev, [name]: '' }));
-    }
-  };
-  
-  const handlePreferenceChange = (checked: boolean, value: string) => {
-    setFormData((prev) => {
-      if (checked) {
-        return { ...prev, preferences: [...prev.preferences, value] };
-      } else {
-        return { ...prev, preferences: prev.preferences.filter((p) => p !== value) };
-      }
-    });
-    
-    if (formErrors.preferences) {
-      setFormErrors((prev) => ({ ...prev, preferences: '' }));
-    }
-  };
-  
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    // Simulate image upload with a data URL (in a real app, this would be uploaded to storage)
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      setPreviewImage(result);
-      setFormData((prev) => ({ ...prev, profilePicture: result }));
-    };
-    reader.readAsDataURL(file);
-  };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (validateForm()) {
-      setSubmitting(true);
+    if (!validateForm()) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      await completeProfile({
+        phoneNumber,
+        address,
+        city,
+        state,
+        zipCode,
+        emergencyContact,
+        preferences: {
+          notifications: notificationsEnabled,
+          newsletter: newsletterEnabled
+        }
+      });
       
-      try {
-        await completeProfile({
-          address: {
-            street: formData.street,
-            landmark: formData.landmark,
-            pincode: formData.pincode,
-          },
-          preferences: formData.preferences,
-          profilePicture: previewImage || undefined,
-        });
-        
-        toast({
-          title: 'Profile completed!',
-          description: 'Your profile has been successfully updated.',
-        });
-        
-        // Redirect to the destination page
-        navigate('/destinations');
-      } catch (err) {
-        console.error('Profile completion error:', err);
-        toast({
-          title: 'Error',
-          description: 'There was an error completing your profile. Please try again.',
-          variant: 'destructive',
-        });
-      } finally {
-        setSubmitting(false);
-      }
+      navigate('/destinations');
+    } catch (error) {
+      console.error('Failed to complete profile:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
+  if (!currentUser) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-8 text-center">
+          <h1 className="text-2xl font-bold mb-4">Please log in to complete your profile</h1>
+          <Button onClick={() => navigate('/login')}>Go to Login</Button>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Complete Your Profile</CardTitle>
-          <CardDescription className="text-center">
-            Add a few more details to enhance your experience
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-4">
-              <h3 className="font-medium text-lg">Address Details</h3>
-              
+    <Layout>
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">Complete Your Profile</h1>
+          <p className="text-gray-600">We need some additional information to complete your profile</p>
+        </div>
+        
+        <Card className="max-w-2xl mx-auto">
+          <CardHeader>
+            <CardTitle>Personal Information</CardTitle>
+            <CardDescription>
+              This information will be used for your bookings and emergencies
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="street">Street Address</Label>
+                <Label htmlFor="phoneNumber">Phone Number</Label>
                 <Input
-                  id="street"
-                  name="street"
-                  placeholder="Enter your street address"
-                  value={formData.street}
-                  onChange={handleInputChange}
-                  className={formErrors.street ? 'border-red-500' : ''}
+                  id="phoneNumber"
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="Enter your 10-digit phone number"
+                  maxLength={10}
+                  className={errors.phoneNumber ? 'border-red-500' : ''}
                 />
-                {formErrors.street && (
-                  <p className="text-sm text-red-500">{formErrors.street}</p>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="landmark">Landmark</Label>
-                <Input
-                  id="landmark"
-                  name="landmark"
-                  placeholder="Enter a nearby landmark"
-                  value={formData.landmark}
-                  onChange={handleInputChange}
-                  className={formErrors.landmark ? 'border-red-500' : ''}
-                />
-                {formErrors.landmark && (
-                  <p className="text-sm text-red-500">{formErrors.landmark}</p>
+                {errors.phoneNumber && (
+                  <p className="text-sm text-red-500">{errors.phoneNumber}</p>
                 )}
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="pincode">Pincode</Label>
+                <Label htmlFor="address">Address</Label>
                 <Input
-                  id="pincode"
-                  name="pincode"
-                  placeholder="6-digit pincode"
-                  value={formData.pincode}
-                  onChange={handleInputChange}
-                  className={formErrors.pincode ? 'border-red-500' : ''}
+                  id="address"
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Enter your address"
+                  className={errors.address ? 'border-red-500' : ''}
                 />
-                {formErrors.pincode && (
-                  <p className="text-sm text-red-500">{formErrors.pincode}</p>
+                {errors.address && (
+                  <p className="text-sm text-red-500">{errors.address}</p>
                 )}
               </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-medium text-lg mb-2">Travel Preferences</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Select the types of travel experiences you enjoy
-                </p>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {travelPreferences.map((preference) => (
-                    <div key={preference.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={preference.id}
-                        checked={formData.preferences.includes(preference.id)}
-                        onCheckedChange={(checked) =>
-                          handlePreferenceChange(checked as boolean, preference.id)
-                        }
-                      />
-                      <Label htmlFor={preference.id}>{preference.label}</Label>
-                    </div>
-                  ))}
-                </div>
-                {formErrors.preferences && (
-                  <p className="text-sm text-red-500 mt-2">{formErrors.preferences}</p>
-                )}
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <h3 className="font-medium text-lg">Profile Picture</h3>
-              <div className="flex flex-col items-center">
-                <div className="relative">
-                  {previewImage ? (
-                    <img
-                      src={previewImage}
-                      alt="Profile Preview"
-                      className="w-32 h-32 rounded-full object-cover border border-gray-200"
-                    />
-                  ) : (
-                    <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center">
-                      <span className="text-gray-500 text-4xl">?</span>
-                    </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="city">City</Label>
+                  <Input
+                    id="city"
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Enter your city"
+                    className={errors.city ? 'border-red-500' : ''}
+                  />
+                  {errors.city && (
+                    <p className="text-sm text-red-500">{errors.city}</p>
                   )}
-                  <label
-                    htmlFor="profilePicture"
-                    className="absolute bottom-0 right-0 bg-primary text-white rounded-full p-2 cursor-pointer hover:bg-primary/90 transition-colors"
-                  >
-                    <Upload className="h-4 w-4" />
-                  </label>
                 </div>
-                <input
-                  type="file"
-                  id="profilePicture"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                <p className="text-sm text-muted-foreground mt-2">
-                  Click the icon to upload a profile picture
-                </p>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="state">State</Label>
+                  <Input
+                    id="state"
+                    type="text"
+                    value={state}
+                    onChange={(e) => setState(e.target.value)}
+                    placeholder="Enter your state"
+                    className={errors.state ? 'border-red-500' : ''}
+                  />
+                  {errors.state && (
+                    <p className="text-sm text-red-500">{errors.state}</p>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="zipCode">ZIP Code</Label>
+                  <Input
+                    id="zipCode"
+                    type="text"
+                    value={zipCode}
+                    onChange={(e) => setZipCode(e.target.value)}
+                    placeholder="Enter your 6-digit ZIP code"
+                    maxLength={6}
+                    className={errors.zipCode ? 'border-red-500' : ''}
+                  />
+                  {errors.zipCode && (
+                    <p className="text-sm text-red-500">{errors.zipCode}</p>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="emergencyContact">Emergency Contact</Label>
+                  <Input
+                    id="emergencyContact"
+                    type="tel"
+                    value={emergencyContact}
+                    onChange={(e) => setEmergencyContact(e.target.value)}
+                    placeholder="Emergency contact number"
+                    className={errors.emergencyContact ? 'border-red-500' : ''}
+                  />
+                  {errors.emergencyContact && (
+                    <p className="text-sm text-red-500">{errors.emergencyContact}</p>
+                  )}
+                </div>
               </div>
-            </div>
-            
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={submitting}
+              
+              <div className="space-y-4 pt-4">
+                <h3 className="text-lg font-medium">Preferences</h3>
+                
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="notifications" className="cursor-pointer">
+                    Enable notifications
+                  </Label>
+                  <Switch
+                    id="notifications"
+                    checked={notificationsEnabled}
+                    onCheckedChange={setNotificationsEnabled}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="newsletter" className="cursor-pointer">
+                    Subscribe to newsletter
+                  </Label>
+                  <Switch
+                    id="newsletter"
+                    checked={newsletterEnabled}
+                    onCheckedChange={setNewsletterEnabled}
+                  />
+                </div>
+              </div>
+            </form>
+          </CardContent>
+          <CardFooter>
+            <Button 
+              onClick={handleSubmit} 
+              className="w-full" 
+              disabled={isSubmitting}
             >
-              {submitting ? (
+              {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Saving...
@@ -300,10 +255,10 @@ const ProfileCompletion: React.FC = () => {
                 'Complete Profile'
               )}
             </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+          </CardFooter>
+        </Card>
+      </div>
+    </Layout>
   );
 };
 
