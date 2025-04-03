@@ -23,6 +23,7 @@ import Booking from "./pages/Booking";
 import MyBookings from "./pages/MyBookings";
 import TripPlanner from "./pages/TripPlanner";
 import PremiumFeatures from "./pages/PremiumFeatures";
+import PremiumSuccess from "./pages/PremiumSuccess";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +53,16 @@ const App = () => (
                     element={
                       <RouteGuard requireAuth={true}>
                         <ProfileCompletion />
+                      </RouteGuard>
+                    } 
+                  />
+                  
+                  {/* Premium Success Page - Protected & Requires Premium */}
+                  <Route 
+                    path="/premium-success" 
+                    element={
+                      <RouteGuard requireAuth={true}>
+                        <PremiumSuccess />
                       </RouteGuard>
                     } 
                   />

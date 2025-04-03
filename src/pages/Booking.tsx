@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
@@ -12,10 +11,11 @@ import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatPrice } from '../utils/helpers';
-import { Loader2, Calendar as CalendarIcon, Users, Clock } from 'lucide-react';
+import { Loader2, Calendar as CalendarIcon, Users, Clock, Star } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const Booking: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +30,7 @@ const Booking: React.FC = () => {
   const [timeSlot, setTimeSlot] = useState<string>('');
   const [totalPrice, setTotalPrice] = useState<number>(0);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const isPremium = currentUser?.isPremium || false;
 
   const destination = id ? getDestinationById(id) : null;
 
@@ -42,7 +43,7 @@ const Booking: React.FC = () => {
   const ticketPrices = {
     standard: destination?.price || 0,
     premium: (destination?.price || 0) * 1.5,
-    guided: (destination?.price || 0) * 2
+    guided: isPremium ? 0 : (destination?.price || 0) * 2
   };
   
   // Get the best time to visit and current crowd level
@@ -60,17 +61,10 @@ const Booking: React.FC = () => {
     const weekendMultiplier = isWeekend ? 1.2 : 1;
     
     setTotalPrice(Math.round(visitorPrice * weekendMultiplier));
-  }, [destination, visitors, ticketType, date]);
+  }, [destination, visitors, ticketType, date, ticketPrices]);
 
   if (!destination) {
-    return (
-      <Layout>
-        <div className="container mx-auto px-4 py-8 text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-          <p>Loading destination information...</p>
-        </div>
-      </Layout>
-    );
+    return null;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -201,7 +195,14 @@ const Booking: React.FC = () => {
                       <SelectContent position="popper">
                         <SelectItem value="standard">Standard ({formatPrice(ticketPrices.standard)})</SelectItem>
                         <SelectItem value="premium">Premium ({formatPrice(ticketPrices.premium)})</SelectItem>
-                        <SelectItem value="guided">Guided Tour ({formatPrice(ticketPrices.guided)})</SelectItem>
+                        <SelectItem value="guided">
+                          Guided Tour ({formatPrice(ticketPrices.guided)})
+                          {isPremium && (
+                            <span className="ml-2 text-xs bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full">
+                              Free with Premium
+                            </span>
+                          )}
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -247,6 +248,12 @@ const Booking: React.FC = () => {
                     <span>Total:</span>
                     <span>{formatPrice(totalPrice)}</span>
                   </div>
+                  {isPremium && ticketType === 'guided' && (
+                    <div className="flex justify-between items-center text-sm text-green-600 mt-1">
+                      <span>Premium Savings:</span>
+                      <span>{formatPrice((destination?.price || 0) * 2)}</span>
+                    </div>
+                  )}
                 </div>
               </CardContent>
               <CardFooter>
@@ -270,17 +277,76 @@ const Booking: React.FC = () => {
             {/* Best time to visit */}
             <Card className="mt-4">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">Best Time to Visit</CardTitle>
+                <CardTitle className="text-base flex items-center justify-between">
+                  <span>Best Time to Visit</span>
+                  {isPremium && (
+                    <span className="text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full flex items-center">
+                      <Star className="h-3 w-3 fill-amber-500 text-amber-500 mr-1" />
+                      Premium Data
+                    </span>
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 <div className="flex items-center">
                   <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <p className="text-sm">Lowest crowds at: <span className="font-medium">{bestTimeToVisit}</span></p>
+                  <p className="text-sm">
+                    Lowest crowds at: <span className="font-medium">{bestTimeToVisit}</span>
+                  </p>
                 </div>
                 <div className="flex items-center">
                   <Users className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <p className="text-sm">Current crowd level: <span className="font-medium capitalize">{crowdLevel}</span></p>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center">
+                          <p className="text-sm">
+                            Current crowd level: <span className="font-medium capitalize">{crowdLevel}</span>
+                          </p>
+                          {isPremium && (
+                            <span className="ml-1 text-sm text-primary cursor-help">
+                              (42%)
+                            </span>
+                          )}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {isPremium 
+                          ? "Premium: Exact crowd percentage available" 
+                          : "Upgrade to premium to see exact crowd percentages"}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
+                
+                {isPremium && (
+                  <div className="bg-blue-50 p-3 rounded-md mt-3">
+                    <p className="text-xs text-blue-700 font-medium">Premium Insights:</p>
+                    <p className="text-xs text-blue-600">
+                      Crowds expected to decrease by 18% in the next 2 hours.
+                      Best booking time is now!
+                    </p>
+                  </div>
+                )}
+                
+                {!isPremium && (
+                  <div className="border border-dashed border-gray-200 rounded-md p-3 mt-3">
+                    <div className="flex justify-between items-center">
+                      <p className="text-xs text-gray-500">
+                        Unlock detailed crowd data
+                      </p>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-7 text-xs"
+                        onClick={() => navigate('/premium')}
+                      >
+                        <Star className="h-3 w-3 mr-1" /> 
+                        Upgrade
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

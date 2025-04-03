@@ -18,13 +18,20 @@ const PremiumFeatures: React.FC = () => {
     setUpgrading(true);
     try {
       await upgradeToPremium();
-      navigate('/destinations');
+      navigate('/premium-success');
     } catch (error) {
       console.error('Failed to upgrade:', error);
     } finally {
       setUpgrading(false);
     }
   };
+
+  // Redirect if already premium
+  React.useEffect(() => {
+    if (currentUser?.isPremium) {
+      navigate('/premium-success');
+    }
+  }, [currentUser, navigate]);
 
   return (
     <Layout>
