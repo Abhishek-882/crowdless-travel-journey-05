@@ -1,4 +1,3 @@
-
 export type User = {
   id: string;
   email: string;
@@ -71,13 +70,13 @@ export type GuideType = {
   image?: string;
 };
 
-export type TripPlan = {
+export interface TripPlan {
   id: string;
   userId: string;
-  selectedDestinations: string[]; // Array of destination IDs
-  selectedGuides: string[]; // Array of guide IDs
-  selectedHotels: string[]; // Array of hotel IDs
-  selectedTransport: string; // Transport ID
+  selectedDestinations: string[];
+  selectedGuides: string[];
+  selectedHotels: string[];
+  selectedTransport: string;
   startDate: string;
   endDate: string;
   numberOfDays: number;
@@ -88,9 +87,9 @@ export type TripPlan = {
   hotelsCost: number;
   transportCost: number;
   guidesCost: number;
-  status: 'draft' | 'confirmed' | 'cancelled';
+  status: 'confirmed' | 'cancelled' | 'completed';
   createdAt: string;
-};
+}
 
 export type Destination = {
   id: string;
@@ -141,12 +140,15 @@ export type DestinationContextType = {
   getDestinationById: (id: string) => Destination | undefined;
 };
 
-export type BookingContextType = {
+export interface BookingContextType {
   bookings: Booking[];
+  tripPlans: TripPlan[];
   addBooking: (bookingData: Omit<Booking, 'id' | 'createdAt'>) => Promise<string>;
   cancelBooking: (bookingId: string) => Promise<void>;
   getBookingById: (bookingId: string) => Booking | undefined;
   getUserBookings: (userId: string) => Booking[];
+  getUserTripPlans: (userId: string) => TripPlan[];
+  saveTripPlan: (tripPlanData: Omit<TripPlan, 'id' | 'createdAt'>) => Promise<string>;
   loading: boolean;
   error: string | null;
 };

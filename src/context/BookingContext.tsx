@@ -1,13 +1,14 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Booking, BookingContextType } from '../types';
+import { Booking, BookingContextType, TripPlan } from '../types';
 import { useToast } from '@/hooks/use-toast';
 
 const BookingContext = createContext<BookingContextType | undefined>(undefined);
 
 export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [tripPlans, setTripPlans] = useState<TripPlan[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -20,6 +21,14 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setBookings(JSON.parse(storedBookings));
       } else {
         localStorage.setItem('bookings', JSON.stringify([]));
+      }
+      
+      // Also load trip plans
+      const storedTripPlans = localStorage.getItem('tripPlans');
+      if (storedTripPlans) {
+        setTripPlans(JSON.parse(storedTripPlans));
+      } else {
+        localStorage.setItem('tripPlans', JSON.stringify([]));
       }
     } catch (err) {
       console.error('Error initializing bookings:', err);
@@ -40,6 +49,13 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       localStorage.setItem('bookings', JSON.stringify(bookings));
     }
   }, [bookings]);
+
+  // Save trip plans to localStorage whenever they change
+  useEffect(() => {
+    if (tripPlans.length > 0 || !loading) {
+      localStorage.setItem('tripPlans', JSON.stringify(tripPlans));
+    }
+  }, [tripPlans]);
 
   const addBooking = async (bookingData: Omit<Booking, 'id' | 'createdAt'>): Promise<string> => {
     setError(null);
@@ -93,6 +109,85 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setError(errorMsg);
       toast({
         title: 'Booking Failed',
+        description: errorMsg,
+        variant: 'destructive',
+      });
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveTripPlan = async (tripPlanData: Omit<TripPlan, 'id' | 'createdAt'>): Promise<string> => {
+    setError(null);
+    setLoading(true);
+
+    try {
+      // Simulate network request
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // Generate a new trip plan ID
+      const newTripPlanId = `trip_${uuidv4()}`;
+
+      // Create new trip plan
+      const newTripPlan: TripPlan = {
+        ...tripPlanData,
+        id: newTripPlanId,
+        createdAt: new Date().toISOString(),
+      };
+
+      // Add to trip plans array
+      setTripPlans((prev) => [...prev, newTripPlan]);
+
+      // Also create a regular booking entry so it appears in the user's bookings
+      const bookingData = {
+        id: `booking_${uuidv4()}`,
+        userId: tripPlanData.userId,
+        destinationId: tripPlanData.selectedDestinations[0], // Use the first destination for the booking
+        checkIn: tripPlanData.startDate,
+        timeSlot: '09:00 AM', // Default time
+        visitors: tripPlanData.numberOfPeople,
+        ticketType: 'standard',
+        totalAmount: tripPlanData.totalCost,
+        status: 'confirmed' as const,
+        createdAt: new Date().toISOString(),
+        tripPlanId: newTripPlanId, // Link to the trip plan
+      };
+
+      // Add to bookings array
+      setBookings((prev) => [...prev, bookingData]);
+
+      // Update user's bookings array
+      try {
+        const users = JSON.parse(localStorage.getItem('users') || '[]');
+        const userIndex = users.findIndex((u: any) => u.id === tripPlanData.userId);
+        
+        if (userIndex !== -1) {
+          users[userIndex].bookings.push(bookingData.id);
+          localStorage.setItem('users', JSON.stringify(users));
+          
+          // Update current user if this is their booking
+          const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+          if (currentUser && currentUser.id === tripPlanData.userId) {
+            currentUser.bookings.push(bookingData.id);
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+          }
+        }
+      } catch (err) {
+        console.error('Error updating user bookings:', err);
+      }
+
+      toast({
+        title: 'Trip Plan Confirmed!',
+        description: 'Your trip has been successfully booked.',
+      });
+
+      return newTripPlanId;
+    } catch (err) {
+      const errorMsg = (err as Error).message || 'Failed to save trip plan';
+      setError(errorMsg);
+      toast({
+        title: 'Trip Booking Failed',
         description: errorMsg,
         variant: 'destructive',
       });
@@ -159,17 +254,30 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const getUserBookings = (userId: string) => {
-    return bookings.filter((b) => b.userId === userId);
+    // Get both regular bookings and trip plans
+    const userBookings = bookings.filter((b) => b.userId === userId);
+    
+    // Get trip-related bookings
+    const userTripPlans = tripPlans.filter((t) => t.userId === userId);
+    
+    return userBookings;
+  };
+
+  const getUserTripPlans = (userId: string) => {
+    return tripPlans.filter((t) => t.userId === userId);
   };
 
   return (
     <BookingContext.Provider
       value={{
         bookings,
+        tripPlans,
         addBooking,
         cancelBooking,
         getBookingById,
         getUserBookings,
+        getUserTripPlans,
+        saveTripPlan,
         loading,
         error,
       }}
