@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useDestinations } from '../context/DestinationContext';
 import { useTripPlanning } from '../context/TripPlanningContext';
 import TripValidation from '../components/TripValidation';
+import TripDistanceCalculator from '../components/TripDistanceCalculator';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -215,6 +216,11 @@ const TripPlanner: React.FC = () => {
         ? prev.filter(id => id !== guideId)
         : [...prev, guideId]
     );
+  };
+
+  // Handle transport suggestion
+  const handleTransportSuggestion = (transportType: 'bus' | 'train' | 'flight' | 'car') => {
+    setTransportPlan(transportType);
   };
 
   // Move to next step
@@ -497,6 +503,15 @@ const TripPlanner: React.FC = () => {
                   
                   <Separator />
                   
+                  {/* Distance Calculator (only show if destinations selected) */}
+                  {selectedDestinations.length > 1 && (
+                    <TripDistanceCalculator 
+                      destinationIds={selectedDestinations} 
+                      numberOfDays={numberOfDays}
+                      onSuggestTransport={handleTransportSuggestion}
+                    />
+                  )}
+                  
                   {/* Add trip validation if destinations are selected */}
                   {selectedDestinations.length > 0 && transportPlan && (
                     <TripValidation 
@@ -610,6 +625,18 @@ const TripPlanner: React.FC = () => {
                       </div>
                     </div>
                   </div>
+                  
+                  <Separator />
+                  
+                  {/* Distance Matrix Calculator */}
+                  {selectedDestinations.length > 1 && (
+                    <TripDistanceCalculator 
+                      destinationIds={selectedDestinations} 
+                      numberOfDays={numberOfDays}
+                      selectedTransportType={transportPlan as 'bus' | 'train' | 'flight' | 'car' | undefined}
+                      onSuggestTransport={handleTransportSuggestion}
+                    />
+                  )}
                   
                   <Separator />
                   
@@ -823,241 +850,4 @@ const TripPlanner: React.FC = () => {
                                   </div>
                                   <div className="flex flex-wrap gap-1 mt-1">
                                     {guide.languages.slice(0, 3).map(lang => (
-                                      <Badge key={lang} variant="outline" className="text-[10px] py-0">
-                                        {lang}
-                                      </Badge>
-                                    ))}
-                                    {guide.languages.length > 3 && (
-                                      <Badge variant="outline" className="text-[10px] py-0">
-                                        +{guide.languages.length - 3}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <div className="text-sm font-semibold">
-                                    {isFreeForPremium 
-                                      ? <span className="text-green-600">Free</span> 
-                                      : formatPrice(guide.pricePerDay)}
-                                  </div>
-                                  <div className="text-xs text-gray-500">per day</div>
-                                  {isSelected && (
-                                    <Badge variant="secondary" className="mt-2">Selected</Badge>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-                <CardFooter className="flex justify-between">
-                  <Button variant="outline" onClick={goToPreviousStep}>
-                    Back
-                  </Button>
-                  <Button
-                    disabled={!canProceedFromHotels}
-                    onClick={goToNextStep}
-                  >
-                    Next: Review & Book
-                  </Button>
-                </CardFooter>
-              </Card>
-            </div>
-          )}
-
-          {/* Summary Step */}
-          {currentStep === 'summary' && (
-            <div className="space-y-8">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Trip Summary</CardTitle>
-                  <CardDescription>Review your trip details before booking</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Trip Details</h3>
-                      
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center">
-                            <CalendarIcon className="h-4 w-4 mr-2 text-gray-500" />
-                            <span>Dates</span>
-                          </div>
-                          <div className="text-right">
-                            <div>{startDate && format(startDate, 'PP')}</div>
-                            <div>to {endDate && format(endDate, 'PP')}</div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center">
-                            <Clock className="h-4 w-4 mr-2 text-gray-500" />
-                            <span>Duration</span>
-                          </div>
-                          <span>{numberOfDays} days</span>
-                        </div>
-                        
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center">
-                            <Users className="h-4 w-4 mr-2 text-gray-500" />
-                            <span>Group Size</span>
-                          </div>
-                          <span>{numberOfPeople} people</span>
-                        </div>
-                        
-                        <Separator />
-                        
-                        <div className="space-y-2">
-                          <div className="flex items-center">
-                            <MapPin className="h-4 w-4 mr-2 text-gray-500" />
-                            <span className="font-medium">Destinations</span>
-                          </div>
-                          <div className="pl-6 space-y-1">
-                            {selectedDestinations.map(destId => {
-                              const destination = destinations.find(d => d.id === destId);
-                              return destination ? (
-                                <div key={destId} className="flex justify-between text-sm">
-                                  <span>{destination.name}, {destination.city}</span>
-                                  <span>{formatPrice(destination.price)}/person</span>
-                                </div>
-                              ) : null;
-                            })}
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <div className="flex items-center">
-                            <Car className="h-4 w-4 mr-2 text-gray-500" />
-                            <span className="font-medium">Transport</span>
-                          </div>
-                          <div className="pl-6">
-                            <div className="flex justify-between text-sm">
-                              <span className="capitalize">{transportPlan}</span>
-                              <span>{tripSummary && formatPrice(tripSummary.transportCost)}</span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <div className="flex items-center">
-                            <Coffee className="h-4 w-4 mr-2 text-gray-500" />
-                            <span className="font-medium">Hotels</span>
-                          </div>
-                          <div className="pl-6">
-                            <div className="flex justify-between text-sm">
-                              <span className="capitalize">{hotelPlan} Class</span>
-                              <span>{tripSummary && formatPrice(tripSummary.hotelsCost)}</span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {selectedGuides.length > 0 && (
-                          <div className="space-y-2">
-                            <div className="flex items-center">
-                              <Briefcase className="h-4 w-4 mr-2 text-gray-500" />
-                              <span className="font-medium">Tour Guides</span>
-                            </div>
-                            <div className="pl-6 space-y-1">
-                              {selectedGuides.map(guideId => {
-                                const guide = guides.find(g => g.id === guideId);
-                                const destination = guide 
-                                  ? destinations.find(d => d.id === guide.destinationId)
-                                  : null;
-                                
-                                const isFree = currentUser?.isPremium && guide && 
-                                  selectedGuides.filter(g => {
-                                    const selectedGuide = guides.find(sg => sg.id === g);
-                                    return selectedGuide && selectedGuide.destinationId === guide.destinationId;
-                                  }).indexOf(guideId) === 0;
-                                
-                                return guide && destination ? (
-                                  <div key={guideId} className="flex justify-between text-sm">
-                                    <span>{guide.name} ({destination.name})</span>
-                                    <span>
-                                      {isFree 
-                                        ? <span className="text-green-600">Free</span> 
-                                        : formatPrice(guide.pricePerDay * numberOfDays)}
-                                    </span>
-                                  </div>
-                                ) : null;
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Cost Breakdown</h3>
-                      
-                      <Card className="bg-gray-50 border-gray-200">
-                        <CardContent className="pt-6">
-                          <div className="space-y-4">
-                            <div className="flex justify-between">
-                              <span>Transport</span>
-                              <span>{tripSummary && formatPrice(tripSummary.transportCost)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Hotels ({numberOfDays} night{numberOfDays !== 1 ? 's' : ''})</span>
-                              <span>{tripSummary && formatPrice(tripSummary.hotelsCost)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Tour Guides</span>
-                              <span>{tripSummary && formatPrice(tripSummary.guidesCost)}</span>
-                            </div>
-                            
-                            <Separator />
-                            
-                            <div className="flex justify-between font-medium text-lg">
-                              <span>Total Cost</span>
-                              <span>{tripSummary && formatPrice(tripSummary.totalCost)}</span>
-                            </div>
-                            
-                            <div className="flex justify-between text-sm text-gray-500">
-                              <span>Per Person</span>
-                              <span>{tripSummary && formatPrice(tripSummary.totalCost / numberOfPeople)}</span>
-                            </div>
-                            
-                            {currentUser?.isPremium && (
-                              <div className="flex justify-between text-sm text-green-600 font-medium">
-                                <span>Premium User Savings</span>
-                                <span>- {formatPrice(selectedGuides.length > 0 ? guides.find(g => g.id === selectedGuides[0])?.pricePerDay || 0 : 0)}</span>
-                              </div>
-                            )}
-                            
-                            {!currentUser?.isPremium && (
-                              <div className="mt-4 bg-blue-50 p-3 rounded-md text-sm text-blue-700">
-                                Upgrade to premium for free tour guides and crowd data analytics!
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-between">
-                  <Button variant="outline" onClick={goToPreviousStep}>
-                    Back
-                  </Button>
-                  <Button
-                    onClick={handleBookTrip}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? 'Processing...' : 'Book This Trip'}
-                  </Button>
-                </CardFooter>
-              </Card>
-            </div>
-          )}
-        </div>
-      </div>
-    </Layout>
-  );
-};
-
-export default TripPlanner;
+                                      <Badge key={lang} variant="outline" className="

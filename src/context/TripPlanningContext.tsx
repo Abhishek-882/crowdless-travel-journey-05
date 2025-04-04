@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { 
@@ -62,6 +63,36 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return guides.filter(guide => guide.destinationId === destinationId);
   };
 
+  // Calculate distance between two destinations using Haversine formula
+  const calculateDistanceBetweenDestinations = (from: Destination, to: Destination): number => {
+    const R = 6371; // Earth's radius in km
+    const dLat = (to.coordinates.lat - from.coordinates.lat) * Math.PI / 180;
+    const dLon = (to.coordinates.lng - from.coordinates.lng) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(from.coordinates.lat * Math.PI / 180) * Math.cos(to.coordinates.lat * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c; // Distance in km
+  };
+
+  // Calculate travel time between destinations based on transport type
+  const calculateTravelTimeBetweenDestinations = (from: Destination, to: Destination, transportType: string): number => {
+    // Calculate distance using coordinates (using Haversine formula)
+    const distanceKm = calculateDistanceBetweenDestinations(from, to);
+    
+    // Calculate travel time based on transport type
+    let speedKmPerHour = 60; // Default speed
+    
+    if (transportType === 'bus') speedKmPerHour = 50;
+    else if (transportType === 'train') speedKmPerHour = 80;
+    else if (transportType === 'flight') speedKmPerHour = 500;
+    else if (transportType === 'car') speedKmPerHour = 60;
+    
+    return distanceKm / speedKmPerHour;
+  };
+
+  // Calculate total trip cost based on various factors
   const calculateTripCost = (options: {
     destinationIds: string[];
     guideIds: string[];
@@ -109,6 +140,219 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
       transportCost,
       guidesCost,
       totalCost
+    };
+  };
+
+  // Get detailed distance matrix between all selected destinations
+  const getDistanceMatrix = (destinationIds: string[]): {
+    fromId: string;
+    toId: string;
+    fromName: string;
+    toName: string;
+    distanceKm: number;
+    travelTimesByTransport: {
+      [key: string]: number; // transport type -> hours
+    };
+  }[] => {
+    const selectedDestinations = destinationIds.map(id => 
+      destinations.find(d => d.id === id)
+    ).filter(Boolean) as Destination[];
+    
+    if (selectedDestinations.length <= 1) return [];
+    
+    const matrix: {
+      fromId: string;
+      toId: string;
+      fromName: string;
+      toName: string;
+      distanceKm: number;
+      travelTimesByTransport: {
+        [key: string]: number;
+      };
+    }[] = [];
+    
+    // Calculate distances between each pair of destinations
+    for (let i = 0; i < selectedDestinations.length - 1; i++) {
+      for (let j = i + 1; j < selectedDestinations.length; j++) {
+        const from = selectedDestinations[i];
+        const to = selectedDestinations[j];
+        
+        const distanceKm = calculateDistanceBetweenDestinations(from, to);
+        
+        // Calculate travel times for different transport types
+        const travelTimesByTransport = {
+          'bus': calculateTravelTimeBetweenDestinations(from, to, 'bus'),
+          'train': calculateTravelTimeBetweenDestinations(from, to, 'train'),
+          'flight': calculateTravelTimeBetweenDestinations(from, to, 'flight'),
+          'car': calculateTravelTimeBetweenDestinations(from, to, 'car')
+        };
+        
+        // Add to matrix (both directions)
+        matrix.push({
+          fromId: from.id,
+          toId: to.id,
+          fromName: from.name,
+          toName: to.name,
+          distanceKm,
+          travelTimesByTransport
+        });
+        
+        matrix.push({
+          fromId: to.id,
+          toId: from.id,
+          fromName: to.name,
+          toName: from.name,
+          distanceKm,
+          travelTimesByTransport
+        });
+      }
+    }
+    
+    return matrix;
+  };
+  
+  // Get suggested transport type based on distances and time constraints
+  const getSuggestedTransport = (
+    destinationIds: string[], 
+    numberOfDays: number, 
+    isPremium: boolean = false
+  ): {
+    recommendedType: 'bus' | 'train' | 'flight' | 'car';
+    alternativeType?: 'bus' | 'train' | 'flight' | 'car';
+    reasoning: string;
+    totalDistanceKm: number;
+    totalTravelTimeHours: number;
+    timeForSightseeing: number;
+    isRealistic: boolean;
+    premiumAdvantages?: string[];
+  } => {
+    if (destinationIds.length <= 1) {
+      return {
+        recommendedType: 'car',
+        reasoning: 'Single destination selected, any transport is suitable.',
+        totalDistanceKm: 0,
+        totalTravelTimeHours: 0,
+        timeForSightseeing: numberOfDays * 8, // Assuming 8 hours per day for sightseeing
+        isRealistic: true
+      };
+    }
+    
+    // Get all selected destinations
+    const selectedDestinations = destinationIds.map(id => 
+      destinations.find(d => d.id === id)
+    ).filter(Boolean) as Destination[];
+    
+    // Calculate total distance
+    let totalDistanceKm = 0;
+    for (let i = 0; i < selectedDestinations.length - 1; i++) {
+      const from = selectedDestinations[i];
+      const to = selectedDestinations[i + 1];
+      totalDistanceKm += calculateDistanceBetweenDestinations(from, to);
+    }
+    
+    // Calculate travel times for different transport types
+    const travelTimes: Record<string, number> = {
+      'bus': 0,
+      'train': 0,
+      'flight': 0,
+      'car': 0
+    };
+    
+    for (let i = 0; i < selectedDestinations.length - 1; i++) {
+      const from = selectedDestinations[i];
+      const to = selectedDestinations[i + 1];
+      
+      travelTimes.bus += calculateTravelTimeBetweenDestinations(from, to, 'bus');
+      travelTimes.train += calculateTravelTimeBetweenDestinations(from, to, 'train');
+      travelTimes.flight += calculateTravelTimeBetweenDestinations(from, to, 'flight') + 3; // Add 3 hours for airport procedures
+      travelTimes.car += calculateTravelTimeBetweenDestinations(from, to, 'car');
+    }
+    
+    // Calculate available time for activities
+    const totalTripHours = numberOfDays * 8; // Assuming 8 active hours per day
+    const timeForSightseeing: Record<string, number> = {
+      'bus': totalTripHours - travelTimes.bus,
+      'train': totalTripHours - travelTimes.train,
+      'flight': totalTripHours - travelTimes.flight,
+      'car': totalTripHours - travelTimes.car
+    };
+    
+    // Find the optimal transport type
+    const transportTypes = ['bus', 'train', 'flight', 'car'] as const;
+    const viableTransports = transportTypes.filter(type => timeForSightseeing[type] > 0);
+    
+    if (viableTransports.length === 0) {
+      // No viable transport option found
+      // Find the least bad option
+      const leastBadOption = transportTypes.reduce((best, current) => 
+        timeForSightseeing[current] > timeForSightseeing[best] ? current : best
+      );
+      
+      return {
+        recommendedType: leastBadOption,
+        reasoning: `Trip is too ambitious for the time available. Consider adding more days or reducing destinations.`,
+        totalDistanceKm,
+        totalTravelTimeHours: travelTimes[leastBadOption],
+        timeForSightseeing: timeForSightseeing[leastBadOption],
+        isRealistic: false,
+        premiumAdvantages: isPremium ? [
+          'Premium route optimization could save up to 15% travel time',
+          'Access to premium lounges at transit points',
+          'Priority boarding on trains and flights'
+        ] : undefined
+      };
+    }
+    
+    // Determine the best option based on distance
+    let recommendedType: 'bus' | 'train' | 'flight' | 'car';
+    let alternativeType: 'bus' | 'train' | 'flight' | 'car' | undefined;
+    let reasoning = '';
+    
+    if (totalDistanceKm > 1500) {
+      // Long distance - recommend flight
+      recommendedType = 'flight';
+      alternativeType = 'train';
+      reasoning = 'Long distances between destinations make flights the most time-efficient option.';
+    } else if (totalDistanceKm > 800) {
+      // Medium-long distance - recommend train or flight
+      recommendedType = 'train';
+      alternativeType = 'flight';
+      reasoning = 'Moderate to long distances are well-suited for train travel, with flights as an alternative for saving time.';
+    } else if (totalDistanceKm > 300) {
+      // Medium distance - recommend train or car
+      recommendedType = 'train';
+      alternativeType = 'car';
+      reasoning = 'Medium distances are ideal for train travel, offering a balance of comfort and sightseeing.';
+    } else {
+      // Short distance - recommend car or bus
+      recommendedType = 'car';
+      alternativeType = 'bus';
+      reasoning = 'Shorter distances are perfect for road travel, offering flexibility to stop at points of interest.';
+    }
+    
+    // Make sure the recommended type is viable
+    if (!viableTransports.includes(recommendedType)) {
+      recommendedType = viableTransports[0];
+      reasoning = 'Original recommendation adjusted due to time constraints.';
+    }
+    
+    // Add premium advantages
+    const premiumAdvantages = isPremium ? [
+      'Real-time traffic and crowd avoidance routes',
+      'VIP access at stations/airports saves up to 45 minutes per transit',
+      'Discounted business class upgrades available',
+      'Flexible rescheduling without fees'
+    ] : undefined;
+    
+    return {
+      recommendedType,
+      alternativeType,
+      reasoning,
+      totalDistanceKm,
+      totalTravelTimeHours: travelTimes[recommendedType],
+      timeForSightseeing: timeForSightseeing[recommendedType],
+      isRealistic: timeForSightseeing[recommendedType] > 0,
+      premiumAdvantages
     };
   };
 
@@ -205,23 +449,6 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } finally {
       setLoading(false);
     }
-  };
-
-  const calculateTravelTimeBetweenDestinations = (from: Destination, to: Destination, transportType: string): number => {
-    // Calculate distance using coordinates (simple Euclidean distance for demonstration)
-    const latDiff = from.coordinates.lat - to.coordinates.lat;
-    const lngDiff = from.coordinates.lng - to.coordinates.lng;
-    const distanceKm = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) * 111; // Rough conversion to kilometers
-    
-    // Calculate travel time based on transport type
-    let speedKmPerHour = 60; // Default speed
-    
-    if (transportType === 'bus') speedKmPerHour = 50;
-    else if (transportType === 'train') speedKmPerHour = 80;
-    else if (transportType === 'flight') speedKmPerHour = 500;
-    else if (transportType === 'car') speedKmPerHour = 60;
-    
-    return distanceKm / speedKmPerHour;
   };
 
   const checkTripFeasibility = (options: {
@@ -351,7 +578,10 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
         getTripPlanById,
         cancelTripPlan,
         checkTripFeasibility,
-        generateOptimalItinerary
+        generateOptimalItinerary,
+        getDistanceMatrix,
+        getSuggestedTransport,
+        calculateDistanceBetweenDestinations
       }}
     >
       {children}

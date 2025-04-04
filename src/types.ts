@@ -1,3 +1,4 @@
+
 export type User = {
   id: string;
   email: string;
@@ -208,4 +209,29 @@ export type TripPlanningContextType = {
     numberOfDays: number;
     startDate: Date;
   }) => TripItineraryDay[];
+  getDistanceMatrix: (destinationIds: string[]) => {
+    fromId: string;
+    toId: string;
+    fromName: string;
+    toName: string;
+    distanceKm: number;
+    travelTimesByTransport: {
+      [key: string]: number; // transport type -> hours
+    };
+  }[];
+  getSuggestedTransport: (
+    destinationIds: string[], 
+    numberOfDays: number, 
+    isPremium?: boolean
+  ) => {
+    recommendedType: 'bus' | 'train' | 'flight' | 'car';
+    alternativeType?: 'bus' | 'train' | 'flight' | 'car';
+    reasoning: string;
+    totalDistanceKm: number;
+    totalTravelTimeHours: number;
+    timeForSightseeing: number;
+    isRealistic: boolean;
+    premiumAdvantages?: string[];
+  };
+  calculateDistanceBetweenDestinations: (from: Destination, to: Destination) => number;
 };
