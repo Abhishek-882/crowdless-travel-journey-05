@@ -33,7 +33,7 @@ const DestinationDetail: React.FC = () => {
           .filter(d => 
             d.id !== id && 
             (d.city === foundDestination.city || 
-             d.category === foundDestination.category)
+             d.state === foundDestination.state)
           )
           .slice(0, 3);
         setSimilarDestinations(similar);
@@ -70,7 +70,7 @@ const DestinationDetail: React.FC = () => {
           </div>
           <div className="absolute top-4 right-4">
             <Badge variant="outline" className="bg-white/80 text-primary">
-              {destination.category}
+              {destination.state}
             </Badge>
           </div>
         </div>
@@ -100,17 +100,16 @@ const DestinationDetail: React.FC = () => {
                       <Camera className="h-5 w-5 mr-2 text-primary mt-0.5" />
                       <div>
                         <p className="font-medium">Photography</p>
-                        <p className="text-sm text-gray-500">{destination.photography}</p>
+                        <p className="text-sm text-gray-500">{destination.photography || 'Allowed'}</p>
                       </div>
                     </div>
                     <div className="flex items-start">
                       <Calendar className="h-5 w-5 mr-2 text-primary mt-0.5" />
                       <div>
                         <p className="font-medium">Opening Hours</p>
-                        <p className="text-sm text-gray-500">{destination.openingHours}</p>
+                        <p className="text-sm text-gray-500">{destination.openingHours || '9 AM - 6 PM'}</p>
                       </div>
                     </div>
-                    {/* Removed best time to visit and current crowd level */}
                   </div>
                 </div>
                 
@@ -118,9 +117,13 @@ const DestinationDetail: React.FC = () => {
                 <div>
                   <h3 className="text-xl font-semibold mb-3">Attractions</h3>
                   <ul className="list-disc list-inside space-y-1 text-gray-700">
-                    {destination.attractions.map((attraction: string, index: number) => (
-                      <li key={index}>{attraction}</li>
-                    ))}
+                    {destination.attractions ? 
+                      destination.attractions.map((attraction: string, index: number) => (
+                        <li key={index}>{attraction}</li>
+                      ))
+                      : 
+                      <li>Information about attractions coming soon</li>
+                    }
                   </ul>
                 </div>
               </TabsContent>
