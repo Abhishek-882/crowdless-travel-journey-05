@@ -89,6 +89,16 @@ export interface TripPlan {
   guidesCost: number;
   status: 'confirmed' | 'cancelled' | 'completed';
   createdAt: string;
+  itinerary?: TripItineraryDay[];
+}
+
+export interface TripItineraryDay {
+  day: number;
+  date: Date;
+  destinationId: string;
+  destinationName: string;
+  activities: string[];
+  isTransitDay: boolean;
 }
 
 export type Destination = {
@@ -106,6 +116,9 @@ export type Destination = {
     lng: number;
   };
   bestTimeToVisit?: string;
+  attractions?: string[];
+  photography?: string;
+  openingHours?: string;
 };
 
 export type AuthContextType = {
@@ -180,4 +193,19 @@ export type TripPlanningContextType = {
   getUserTripPlans: (userId: string) => TripPlan[];
   getTripPlanById: (tripPlanId: string) => TripPlan | undefined;
   cancelTripPlan: (tripPlanId: string) => Promise<void>;
+  checkTripFeasibility: (options: {
+    destinationIds: string[];
+    transportType: 'bus' | 'train' | 'flight' | 'car';
+    numberOfDays: number;
+  }) => {
+    feasible: boolean;
+    daysNeeded: number;
+    daysShort?: number;
+  };
+  generateOptimalItinerary: (options: {
+    destinationIds: string[];
+    transportType: 'bus' | 'train' | 'flight' | 'car';
+    numberOfDays: number;
+    startDate: Date;
+  }) => TripItineraryDay[];
 };

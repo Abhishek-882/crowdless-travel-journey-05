@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 import { useDestinations } from '../context/DestinationContext';
 import { useTripPlanning } from '../context/TripPlanningContext';
+import TripValidation from '../components/TripValidation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { format, addDays, differenceInDays } from 'date-fns';
 import { CalendarIcon, Clock, Users, MapPin, Car, Bus, Train, Plane, Info, Star, Coffee, Briefcase } from 'lucide-react';
-import { HotelType, TransportType, GuideType } from '../types';
+import { HotelType, TransportType, GuideType, TripItineraryDay } from '../types';
 import { formatPrice } from '../utils/helpers';
 
 const TripPlanner: React.FC = () => {
@@ -31,7 +31,9 @@ const TripPlanner: React.FC = () => {
     transports, 
     getHotelsByDestination, 
     getGuidesByDestination, 
-    saveTripPlan 
+    saveTripPlan,
+    checkTripFeasibility,
+    generateOptimalItinerary
   } = useTripPlanning();
   
   const navigate = useNavigate();
@@ -43,6 +45,7 @@ const TripPlanner: React.FC = () => {
   const [startDate, setStartDate] = useState<Date | undefined>(new Date());
   const [endDate, setEndDate] = useState<Date | undefined>(addDays(new Date(), 3));
   const [budgetRange, setBudgetRange] = useState<[number, number]>([5000, 50000]);
+  const [tripName, setTripName] = useState<string>("");
   
   // Step tracking
   const [currentStep, setCurrentStep] = useState<string>('destinations');
@@ -72,14 +75,50 @@ const TripPlanner: React.FC = () => {
     totalCost: number;
   } | null>(null);
   
+  // Validation
+  const [tripFeasibility, setTripFeasibility] = useState<{
+    feasible: boolean;
+    daysNeeded: number;
+    daysShort?: number;
+  }>({ feasible: true, daysNeeded: 0 });
+  
+  // Itinerary
+  const [tripItinerary, setTripItinerary] = useState<TripItineraryDay[]>([]);
+  
   // Status
   const [isLoading, setIsLoading] = useState(false);
+  const [forceValidationBypass, setForceValidationBypass] = useState(false);
 
   // Calculate number of days for the trip
   const numberOfDays = startDate && endDate 
     ? differenceInDays(endDate, startDate) + 1
     : 1;
 
+  // Check trip feasibility when destinations or days change
+  useEffect(() => {
+    if (selectedDestinations.length > 0 && transportPlan && numberOfDays) {
+      const feasibility = checkTripFeasibility({
+        destinationIds: selectedDestinations,
+        transportType: transportPlan as 'bus' | 'train' | 'flight' | 'car',
+        numberOfDays
+      });
+      setTripFeasibility(feasibility);
+      
+      // Generate itinerary if trip is feasible or we're forcing bypass
+      if (feasibility.feasible || forceValidationBypass) {
+        if (startDate) {
+          const itinerary = generateOptimalItinerary({
+            destinationIds: selectedDestinations,
+            transportType: transportPlan as 'bus' | 'train' | 'flight' | 'car',
+            numberOfDays,
+            startDate
+          });
+          setTripItinerary(itinerary);
+        }
+      }
+    }
+  }, [selectedDestinations, transportPlan, numberOfDays, startDate, forceValidationBypass]);
+  
   // Get hotels for selected destinations
   const getSelectedHotels = (type: 'budget' | 'standard' | 'luxury'): HotelType[] => {
     return selectedDestinations.map(destId => {
@@ -182,10 +221,16 @@ const TripPlanner: React.FC = () => {
   const goToNextStep = () => {
     switch(currentStep) {
       case 'destinations':
-        setCurrentStep('transport');
+        // Only proceed if feasible or user has chosen to bypass
+        if (tripFeasibility.feasible || forceValidationBypass || !transportPlan) {
+          setCurrentStep('transport');
+        }
         break;
       case 'transport':
-        setCurrentStep('hotels');
+        // Check feasibility after transport selection
+        if (tripFeasibility.feasible || forceValidationBypass) {
+          setCurrentStep('hotels');
+        }
         break;
       case 'hotels':
         setCurrentStep('summary');
@@ -212,7 +257,7 @@ const TripPlanner: React.FC = () => {
     }
   };
 
-  // Handle final booking
+  // Handle final booking - update to include itinerary
   const handleBookTrip = async () => {
     if (!currentUser || !startDate || !endDate || !transportPlan || !hotelPlan || !tripSummary) return;
 
@@ -240,6 +285,7 @@ const TripPlanner: React.FC = () => {
         transportCost: tripSummary.transportCost,
         guidesCost: tripSummary.guidesCost,
         status: 'confirmed' as const,
+        itinerary: tripItinerary
       };
 
       // Save the trip plan
@@ -261,6 +307,19 @@ const TripPlanner: React.FC = () => {
   const availableGuides = selectedDestinations.flatMap(destId => 
     getGuidesByDestination(destId)
   );
+
+  // Increase trip duration to match feasibility requirements
+  const adjustTripDuration = () => {
+    if (endDate && tripFeasibility.daysNeeded) {
+      const newEndDate = addDays(startDate || new Date(), tripFeasibility.daysNeeded - 1);
+      setEndDate(newEndDate);
+    }
+  };
+
+  // Force continue despite validation warning
+  const bypassValidation = () => {
+    setForceValidationBypass(true);
+  };
 
   return (
     <Layout>
@@ -305,6 +364,55 @@ const TripPlanner: React.FC = () => {
                 <CardContent className="space-y-6">
                   {/* Trip Details */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="tripName">Trip Name</Label>
+                      <Input 
+                        id="tripName" 
+                        placeholder="Family Goa Trip"
+                        value={tripName}
+                        onChange={(e) => setTripName(e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="people">Number of People</Label>
+                      <div className="flex items-center">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="icon" 
+                          onClick={() => setNumberOfPeople(p => Math.max(1, p - 1))}
+                          disabled={numberOfPeople <= 1}
+                        >
+                          -
+                        </Button>
+                        <Input 
+                          id="people"
+                          className="w-20 mx-2 text-center"
+                          value={numberOfPeople} 
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value);
+                            if (!isNaN(value) && value >= 1 && value <= 25) {
+                              setNumberOfPeople(value);
+                            }
+                          }}
+                          min={1}
+                          max={25}
+                          type="number"
+                        />
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="icon" 
+                          onClick={() => setNumberOfPeople(p => Math.min(25, p + 1))}
+                          disabled={numberOfPeople >= 25}
+                        >
+                          +
+                        </Button>
+                        <span className="ml-3 text-gray-500 text-sm">Max 25 people</span>
+                      </div>
+                    </div>
+                    
                     <div className="space-y-2">
                       <Label htmlFor="startDate">Start Date</Label>
                       <Popover>
@@ -358,45 +466,6 @@ const TripPlanner: React.FC = () => {
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="people">Number of People</Label>
-                      <div className="flex items-center">
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          size="icon" 
-                          onClick={() => setNumberOfPeople(p => Math.max(1, p - 1))}
-                          disabled={numberOfPeople <= 1}
-                        >
-                          -
-                        </Button>
-                        <Input 
-                          id="people"
-                          className="w-20 mx-2 text-center"
-                          value={numberOfPeople} 
-                          onChange={(e) => {
-                            const value = parseInt(e.target.value);
-                            if (!isNaN(value) && value >= 1 && value <= 25) {
-                              setNumberOfPeople(value);
-                            }
-                          }}
-                          min={1}
-                          max={25}
-                          type="number"
-                        />
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          size="icon" 
-                          onClick={() => setNumberOfPeople(p => Math.min(25, p + 1))}
-                          disabled={numberOfPeople >= 25}
-                        >
-                          +
-                        </Button>
-                        <span className="ml-3 text-gray-500 text-sm">Max 25 people</span>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
                       <Label htmlFor="budget">Budget Range (per person)</Label>
                       <div className="flex items-center space-x-4">
                         <Input
@@ -427,6 +496,18 @@ const TripPlanner: React.FC = () => {
                   </div>
                   
                   <Separator />
+                  
+                  {/* Add trip validation if destinations are selected */}
+                  {selectedDestinations.length > 0 && transportPlan && (
+                    <TripValidation 
+                      feasible={tripFeasibility.feasible} 
+                      daysNeeded={tripFeasibility.daysNeeded}
+                      daysShort={tripFeasibility.daysShort}
+                      onAdjustDays={adjustTripDuration}
+                      onContinue={bypassValidation}
+                      isPremium={currentUser?.isPremium}
+                    />
+                  )}
                   
                   {/* Premium feature notice */}
                   {!currentUser?.isPremium && (

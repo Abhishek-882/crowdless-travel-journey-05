@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { 
@@ -6,13 +5,15 @@ import {
   HotelType, 
   TransportType, 
   GuideType, 
-  TripPlan 
+  TripPlan,
+  Destination
 } from '../types';
 import { hotels } from '../data/hotels';
 import { transports } from '../data/transports';
 import { guides } from '../data/guides';
 import { useToast } from '@/hooks/use-toast';
 import { useBookings } from './BookingContext';
+import { useDestinations } from './DestinationContext';
 
 const TripPlanningContext = createContext<TripPlanningContextType | undefined>(undefined);
 
@@ -22,6 +23,7 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { saveTripPlan: saveBookingTripPlan } = useBookings();
+  const { destinations } = useDestinations();
 
   // Initialize trip plans from localStorage
   useEffect(() => {
@@ -205,6 +207,133 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
+  const calculateTravelTimeBetweenDestinations = (from: Destination, to: Destination, transportType: string): number => {
+    // Calculate distance using coordinates (simple Euclidean distance for demonstration)
+    const latDiff = from.coordinates.lat - to.coordinates.lat;
+    const lngDiff = from.coordinates.lng - to.coordinates.lng;
+    const distanceKm = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) * 111; // Rough conversion to kilometers
+    
+    // Calculate travel time based on transport type
+    let speedKmPerHour = 60; // Default speed
+    
+    if (transportType === 'bus') speedKmPerHour = 50;
+    else if (transportType === 'train') speedKmPerHour = 80;
+    else if (transportType === 'flight') speedKmPerHour = 500;
+    else if (transportType === 'car') speedKmPerHour = 60;
+    
+    return distanceKm / speedKmPerHour;
+  };
+
+  const checkTripFeasibility = (options: {
+    destinationIds: string[];
+    transportType: 'bus' | 'train' | 'flight' | 'car';
+    numberOfDays: number;
+  }) => {
+    if (options.destinationIds.length <= 1) {
+      return { feasible: true, daysNeeded: options.numberOfDays };
+    }
+    
+    // Get destinations data
+    const selectedDestinations = options.destinationIds.map(id => 
+      destinations.find(dest => dest.id === id)
+    ).filter(Boolean) as Destination[];
+    
+    if (selectedDestinations.length <= 1) {
+      return { feasible: true, daysNeeded: options.numberOfDays };
+    }
+    
+    // Calculate minimum visit time per destination (1 day)
+    const visitDaysNeeded = selectedDestinations.length;
+    
+    // Calculate travel time between destinations
+    let totalTravelTimeHours = 0;
+    for (let i = 0; i < selectedDestinations.length - 1; i++) {
+      const from = selectedDestinations[i];
+      const to = selectedDestinations[i + 1];
+      totalTravelTimeHours += calculateTravelTimeBetweenDestinations(from, to, options.transportType);
+    }
+    
+    // Convert travel hours to days (assume 8 hours of travel per day)
+    const travelDaysNeeded = Math.ceil(totalTravelTimeHours / 8);
+    
+    // Total days needed = visit days + travel days
+    const totalDaysNeeded = visitDaysNeeded + travelDaysNeeded;
+    
+    return {
+      feasible: totalDaysNeeded <= options.numberOfDays,
+      daysNeeded: totalDaysNeeded,
+      daysShort: totalDaysNeeded - options.numberOfDays
+    };
+  };
+  
+  const generateOptimalItinerary = (options: {
+    destinationIds: string[];
+    transportType: 'bus' | 'train' | 'flight' | 'car';
+    numberOfDays: number;
+    startDate: Date;
+  }) => {
+    const selectedDestinations = options.destinationIds.map(id => 
+      destinations.find(dest => dest.id === id)
+    ).filter(Boolean) as Destination[];
+    
+    if (!selectedDestinations.length) return [];
+    
+    const itinerary = [];
+    let currentDate = new Date(options.startDate);
+    let currentDestIndex = 0;
+    
+    // Create day-by-day itinerary
+    for (let day = 1; day <= options.numberOfDays; day++) {
+      if (currentDestIndex < selectedDestinations.length) {
+        const destination = selectedDestinations[currentDestIndex];
+        
+        // Add a day at this destination
+        itinerary.push({
+          day,
+          date: new Date(currentDate),
+          destinationId: destination.id,
+          destinationName: destination.name,
+          activities: ["Explore " + destination.name],
+          isTransitDay: false
+        });
+        
+        // Check if we need to travel to the next destination
+        if (currentDestIndex < selectedDestinations.length - 1) {
+          const nextDest = selectedDestinations[currentDestIndex + 1];
+          const travelTime = calculateTravelTimeBetweenDestinations(
+            destination, 
+            nextDest, 
+            options.transportType
+          );
+          
+          // If travel time > 4 hours, next day will be transit day
+          if (travelTime > 4) {
+            // Add a transit day
+            currentDate.setDate(currentDate.getDate() + 1);
+            day++;
+            
+            if (day <= options.numberOfDays) {
+              itinerary.push({
+                day,
+                date: new Date(currentDate),
+                destinationId: nextDest.id,
+                destinationName: nextDest.name,
+                activities: [`Travel from ${destination.name} to ${nextDest.name}`],
+                isTransitDay: true
+              });
+            }
+          }
+          
+          currentDestIndex++;
+        }
+      }
+      
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    return itinerary;
+  };
+
   return (
     <TripPlanningContext.Provider
       value={{
@@ -221,6 +350,8 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
         getUserTripPlans,
         getTripPlanById,
         cancelTripPlan,
+        checkTripFeasibility,
+        generateOptimalItinerary
       }}
     >
       {children}
