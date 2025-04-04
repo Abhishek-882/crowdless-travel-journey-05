@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
@@ -9,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, MapPin, Users } from 'lucide-react';
+import { Calendar, MapPin, Users, Clock, Landmark } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatPrice } from '../utils/helpers';
 
@@ -159,44 +158,91 @@ const MyBookings: React.FC = () => {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {userTripPlans.map((trip) => {
-                    const primaryDestination = getDestinationById(trip.selectedDestinations[0]);
+                    const destinations = trip.selectedDestinations.map(id => 
+                      getDestinationById(id)
+                    ).filter(Boolean);
+                    
                     return (
                       <Card key={trip.id} className="overflow-hidden">
-                        {primaryDestination && (
+                        {destinations.length > 0 && (
                           <>
                             <div
                               className="h-40 bg-cover bg-center"
-                              style={{ backgroundImage: `url(${primaryDestination.image})` }}
+                              style={{ backgroundImage: `url(${destinations[0]?.image})` }}
                             />
                             <CardHeader className="pb-2">
                               <div className="flex justify-between items-start">
                                 <CardTitle>Multi-Destination Trip</CardTitle>
                                 <Badge>{trip.selectedDestinations.length} destinations</Badge>
                               </div>
-                              <div className="flex items-center text-sm text-gray-600">
-                                <MapPin className="h-4 w-4 mr-1" />
-                                <span>Starting: {primaryDestination.city}, {primaryDestination.state}</span>
+                              
+                              <div className="text-sm text-gray-600 space-y-1 mt-2">
+                                <div className="font-medium">Destinations:</div>
+                                {destinations.map((dest, index) => (
+                                  <div key={dest?.id} className="flex items-center ml-1">
+                                    <MapPin className="h-3 w-3 mr-1" />
+                                    <span>{dest?.name}, {dest?.state}</span>
+                                    {index < destinations.length - 1 && (
+                                      <span className="mx-1">→</span>
+                                    )}
+                                  </div>
+                                ))}
                               </div>
                             </CardHeader>
-                            <CardContent className="space-y-2">
+                            
+                            <CardContent className="space-y-3">
                               <div className="flex items-center">
                                 <Calendar className="h-4 w-4 mr-2 text-gray-500" />
                                 <span className="text-sm">
                                   {format(new Date(trip.startDate), 'PPP')} to {format(new Date(trip.endDate), 'PPP')}
                                 </span>
                               </div>
+                              
                               <div className="flex items-center">
                                 <Users className="h-4 w-4 mr-2 text-gray-500" />
                                 <span className="text-sm">{trip.numberOfPeople} travelers</span>
                               </div>
+                              
+                              <div className="flex items-center">
+                                <Clock className="h-4 w-4 mr-2 text-gray-500" />
+                                <span className="text-sm">{trip.numberOfDays} days</span>
+                              </div>
+                              
+                              {trip.selectedHotels && trip.selectedHotels.length > 0 && (
+                                <div className="flex items-center">
+                                  <Landmark className="h-4 w-4 mr-2 text-gray-500" />
+                                  <span className="text-sm">{trip.selectedHotels.length} hotels booked</span>
+                                </div>
+                              )}
+                              
                               <div className="flex items-center justify-between mt-2">
                                 <span className="font-medium">{formatPrice(trip.totalCost)}</span>
                                 <Badge variant={trip.status === 'confirmed' ? 'default' : 'secondary'}>
                                   {trip.status}
                                 </Badge>
                               </div>
+                              
+                              {trip.itinerary && (
+                                <div className="border-t mt-3 pt-3">
+                                  <p className="text-sm font-medium mb-2">Itinerary Preview:</p>
+                                  <div className="space-y-1 text-xs">
+                                    {trip.itinerary.slice(0, 2).map((day) => (
+                                      <div key={day.day} className="flex">
+                                        <span className="font-medium mr-2">Day {day.day}:</span>
+                                        <span>{day.destinationName} {day.isTransitDay ? "(Transit)" : ""}</span>
+                                      </div>
+                                    ))}
+                                    {trip.itinerary.length > 2 && (
+                                      <div className="text-xs text-gray-500">
+                                        + {trip.itinerary.length - 2} more days...
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
                             </CardContent>
-                            <CardFooter className="pt-0">
+                            
+                            <CardFooter className="pt-0 flex justify-between">
                               <Button 
                                 variant="outline" 
                                 size="sm"
