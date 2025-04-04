@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
@@ -850,4 +851,237 @@ const TripPlanner: React.FC = () => {
                                   </div>
                                   <div className="flex flex-wrap gap-1 mt-1">
                                     {guide.languages.slice(0, 3).map(lang => (
-                                      <Badge key={lang} variant="outline" className="
+                                      <Badge key={lang} variant="outline" className="text-xs py-0 h-5">
+                                        {lang}
+                                      </Badge>
+                                    ))}
+                                    {guide.languages.length > 3 && (
+                                      <Badge variant="outline" className="text-xs py-0 h-5">
+                                        +{guide.languages.length - 3} more
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="font-medium text-sm">
+                                    {isFreeForPremium ? (
+                                      <span className="text-green-600">Free</span>
+                                    ) : (
+                                      formatPrice(guide.pricePerDay * numberOfDays)
+                                    )}
+                                  </div>
+                                  {!isFreeForPremium && (
+                                    <div className="text-xs text-gray-500">
+                                      {formatPrice(guide.pricePerDay)} per day
+                                    </div>
+                                  )}
+                                  {isSelected && (
+                                    <Badge variant="default" className="mt-1">Selected</Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+                <CardFooter className="flex justify-between">
+                  <Button variant="outline" onClick={goToPreviousStep}>
+                    Back
+                  </Button>
+                  <Button
+                    disabled={!canProceedFromHotels}
+                    onClick={goToNextStep}
+                  >
+                    Next: Review Trip
+                  </Button>
+                </CardFooter>
+              </Card>
+            </div>
+          )}
+          
+          {/* Summary Step */}
+          {currentStep === 'summary' && tripSummary && (
+            <div className="space-y-8">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Trip Summary</CardTitle>
+                  <CardDescription>Review your trip details before booking</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Trip Overview */}
+                  <div>
+                    <h3 className="text-lg font-medium mb-2">{tripName || 'Your Trip'}</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="flex flex-col bg-gray-50 p-3 rounded-md">
+                        <span className="text-gray-500 text-sm">Dates</span>
+                        <span>
+                          {startDate && endDate && `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d, yyyy')}`}
+                        </span>
+                        <span className="text-gray-500 text-sm mt-1">
+                          {numberOfDays} day{numberOfDays !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      <div className="flex flex-col bg-gray-50 p-3 rounded-md">
+                        <span className="text-gray-500 text-sm">Travelers</span>
+                        <span>{numberOfPeople} {numberOfPeople === 1 ? 'person' : 'people'}</span>
+                      </div>
+                      <div className="flex flex-col bg-gray-50 p-3 rounded-md">
+                        <span className="text-gray-500 text-sm">Transport</span>
+                        <span className="capitalize">{transportPlan}</span>
+                      </div>
+                      <div className="flex flex-col bg-gray-50 p-3 rounded-md">
+                        <span className="text-gray-500 text-sm">Hotel Type</span>
+                        <span className="capitalize">{hotelPlan}</span>
+                      </div>
+                      <div className="flex flex-col bg-gray-50 p-3 rounded-md">
+                        <span className="text-gray-500 text-sm">Destinations</span>
+                        <span>{selectedDestinations.length} location{selectedDestinations.length !== 1 ? 's' : ''}</span>
+                      </div>
+                      <div className="flex flex-col bg-gray-50 p-3 rounded-md">
+                        <span className="text-gray-500 text-sm">Guides</span>
+                        <span>{selectedGuides.length} guide{selectedGuides.length !== 1 ? 's' : ''}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <Separator />
+                  
+                  {/* Cost Breakdown */}
+                  <div>
+                    <h3 className="text-lg font-medium mb-3">Cost Breakdown</h3>
+                    <div className="rounded-md border divide-y">
+                      <div className="flex justify-between p-3">
+                        <span>Transport</span>
+                        <span>{formatPrice(tripSummary.transportCost)}</span>
+                      </div>
+                      <div className="flex justify-between p-3">
+                        <span>Accommodation ({numberOfDays} nights)</span>
+                        <span>{formatPrice(tripSummary.hotelsCost)}</span>
+                      </div>
+                      {tripSummary.guidesCost > 0 && (
+                        <div className="flex justify-between p-3">
+                          <span>Guide Services</span>
+                          <span>{formatPrice(tripSummary.guidesCost)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between p-3 font-medium">
+                        <span>Total Cost</span>
+                        <span>{formatPrice(tripSummary.totalCost)}</span>
+                      </div>
+                      <div className="flex justify-between p-3 text-sm text-gray-500">
+                        <span>Cost per person</span>
+                        <span>{formatPrice(tripSummary.totalCost / numberOfPeople)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <Separator />
+                  
+                  {/* Destinations */}
+                  <div>
+                    <h3 className="text-lg font-medium mb-3">Selected Destinations</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {selectedDestinations.map(destId => {
+                        const destination = destinations.find(d => d.id === destId);
+                        if (!destination) return null;
+                        
+                        return (
+                          <div key={destId} className="border rounded-md overflow-hidden">
+                            <div 
+                              className="h-24 bg-cover bg-center"
+                              style={{ backgroundImage: `url(${destination.image})` }}
+                            />
+                            <div className="p-3">
+                              <h4 className="font-medium">{destination.name}</h4>
+                              <div className="flex items-center text-xs text-gray-500">
+                                <MapPin className="h-3 w-3 mr-1" />
+                                {destination.city}, {destination.state}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  
+                  <Separator />
+                  
+                  {/* Itinerary */}
+                  <div>
+                    <h3 className="text-lg font-medium mb-3">Your Itinerary</h3>
+                    {tripItinerary.length > 0 ? (
+                      <div className="space-y-3">
+                        {tripItinerary.map((day, index) => (
+                          <Card key={index}>
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <h4 className="font-medium">
+                                    Day {day.day}: {day.destinationName}
+                                  </h4>
+                                  <div className="text-sm text-gray-500">
+                                    {format(new Date(day.date), 'MMM d, yyyy')}
+                                  </div>
+                                  
+                                  {day.isTransitDay ? (
+                                    <Badge className="mt-2" variant="secondary">
+                                      Transit Day
+                                    </Badge>
+                                  ) : (
+                                    <ul className="mt-2 text-sm space-y-1">
+                                      {day.activities.map((activity, i) => (
+                                        <li key={i} className="flex items-start">
+                                          <span className="mr-2">•</span>
+                                          <span>{activity}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
+                                
+                                {currentUser?.isPremium && !day.isTransitDay && (
+                                  <div className="bg-purple-50 border border-purple-100 rounded-md p-2 text-xs text-purple-700">
+                                    <div className="font-medium mb-1">Premium Insights:</div>
+                                    <div className="flex items-center">
+                                      <Users className="h-3 w-3 mr-1" />
+                                      <span>Least crowds at 9-10 AM</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center p-6 bg-gray-50 rounded-lg">
+                        <div className="text-gray-500">Itinerary will be generated once your trip is confirmed.</div>
+                      </div>
+                    )}
+                  </div>
+                  
+                </CardContent>
+                <CardFooter className="flex justify-between">
+                  <Button variant="outline" onClick={goToPreviousStep}>
+                    Back
+                  </Button>
+                  <Button 
+                    disabled={isLoading}
+                    onClick={handleBookTrip}
+                  >
+                    {isLoading ? 'Booking...' : 'Book Trip'}
+                  </Button>
+                </CardFooter>
+              </Card>
+            </div>
+          )}
+        </div>
+      </div>
+    </Layout>
+  );
+};
+
+export default TripPlanner;
