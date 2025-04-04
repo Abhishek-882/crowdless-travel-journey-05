@@ -12,6 +12,7 @@ import { hotels } from '../data/hotels';
 import { transports } from '../data/transports';
 import { guides } from '../data/guides';
 import { useToast } from '@/hooks/use-toast';
+import { useBookings } from './BookingContext';
 
 const TripPlanningContext = createContext<TripPlanningContextType | undefined>(undefined);
 
@@ -20,6 +21,7 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { saveTripPlan: saveBookingTripPlan } = useBookings();
 
   // Initialize trip plans from localStorage
   useEffect(() => {
@@ -77,7 +79,10 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const hotelsInDestination = getHotelsByDestination(destId);
       const hotel = hotelsInDestination.find(h => h.type === options.hotelType);
       if (hotel) {
-        totalHotelsCost += hotel.pricePerPerson * options.numberOfPeople * options.numberOfDays;
+        // Reducing hotel costs as requested
+        const pricePerPerson = hotel.type === 'budget' ? 500 :
+                              hotel.type === 'standard' ? 1000 : 1500;
+        totalHotelsCost += pricePerPerson * options.numberOfPeople * options.numberOfDays;
       }
     });
 
@@ -126,6 +131,9 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
       // Add to trip plans array
       setTripPlans((prev) => [...prev, newTripPlan]);
 
+      // Also save the trip plan to the bookings context to ensure it appears in booking history
+      await saveBookingTripPlan(tripPlanData);
+      
       toast({
         title: 'Trip Plan Saved!',
         description: 'Your trip plan has been successfully created.',

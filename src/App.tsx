@@ -19,7 +19,6 @@ import ProfileCompletion from "./pages/ProfileCompletion";
 import Destinations from "./pages/Destinations";
 import DestinationDetail from "./pages/DestinationDetail";
 import About from "./pages/About";
-import Booking from "./pages/Booking";
 import MyBookings from "./pages/MyBookings";
 import TripPlanner from "./pages/TripPlanner";
 import PremiumFeatures from "./pages/PremiumFeatures";
@@ -68,15 +67,6 @@ const App = () => (
                   />
                   
                   {/* Routes that require completed profile */}
-                  <Route 
-                    path="/booking/:id" 
-                    element={
-                      <RouteGuard requireAuth={true} requireProfileComplete={true}>
-                        <Booking />
-                      </RouteGuard>
-                    } 
-                  />
-                  
                   <Route 
                     path="/bookings" 
                     element={

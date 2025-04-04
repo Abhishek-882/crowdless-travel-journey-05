@@ -35,6 +35,14 @@ const NavUserMenu: React.FC<NavUserMenuProps> = ({
       return (
         <>
           <Link
+            to="/trip-planner"
+            className="px-2 py-2 rounded-md text-gray-700"
+            onClick={onItemClick}
+          >
+            <Map className="h-4 w-4 inline mr-1" />
+            Plan Your Trip
+          </Link>
+          <Link
             to="/bookings"
             className="px-2 py-2 rounded-md text-gray-700"
             onClick={onItemClick}
@@ -94,13 +102,13 @@ const NavUserMenu: React.FC<NavUserMenuProps> = ({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => navigate('/trip-planner')}>
+            <Map className="h-4 w-4 mr-2" />
+            <span>Plan Your Trip</span>
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => navigate('/bookings')}>
             <MapPin className="h-4 w-4 mr-2" />
             <span>My Bookings</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => navigate('/trip-planner')}>
-            <Map className="h-4 w-4 mr-2" />
-            <span>Plan a Trip</span>
           </DropdownMenuItem>
           {!currentUser.isPremium && (
             <DropdownMenuItem onClick={() => navigate('/premium')}>
