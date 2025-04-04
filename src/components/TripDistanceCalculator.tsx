@@ -6,13 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Info, MapPin, Clock, Car, Bus, Plane, Train } from 'lucide-react';
+import { Info, MapPin, Clock, Car, Bus, Plane, Train, Calendar, Hotel } from 'lucide-react';
 import { useTripPlanning } from '../context/TripPlanningContext';
 import { useAuth } from '../context/AuthContext';
+import { format } from 'date-fns';
 
 interface TripDistanceCalculatorProps {
   destinationIds: string[];
   numberOfDays: number;
+  startDate?: Date;
   selectedTransportType?: 'bus' | 'train' | 'flight' | 'car';
   onSuggestTransport?: (transportType: 'bus' | 'train' | 'flight' | 'car') => void;
 }
@@ -20,12 +22,14 @@ interface TripDistanceCalculatorProps {
 const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({ 
   destinationIds, 
   numberOfDays,
+  startDate,
   selectedTransportType,
   onSuggestTransport 
 }) => {
-  const { getDistanceMatrix, getSuggestedTransport } = useTripPlanning();
+  const { getDistanceMatrix, getSuggestedTransport, getHotelsByDestination, generateOptimalItinerary } = useTripPlanning();
   const { currentUser } = useAuth();
   const [showDetails, setShowDetails] = useState(false);
+  const [showItinerary, setShowItinerary] = useState(false);
   
   // Get distances between all destinations
   const distanceMatrix = getDistanceMatrix(destinationIds);
@@ -36,6 +40,15 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
     numberOfDays, 
     currentUser?.isPremium
   );
+
+  // Generate an optimal itinerary if we have a start date
+  const itinerary = startDate ? 
+    generateOptimalItinerary({
+      destinationIds,
+      transportType: selectedTransportType || transportRecommendation.recommendedType,
+      numberOfDays,
+      startDate
+    }) : [];
 
   const totalTravelTime = transportRecommendation.totalTravelTimeHours;
   const totalDistance = transportRecommendation.totalDistanceKm;
@@ -73,6 +86,12 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
               <Clock className="h-3.5 w-3.5 mr-1" />
               <span>Travel time: ~{Math.round(totalTravelTime)} hours</span>
             </div>
+            {destinationIds.length > 1 && (
+              <div className="flex items-center text-sm text-gray-500 mt-1">
+                <Hotel className="h-3.5 w-3.5 mr-1" />
+                <span>Hotels needed: {destinationIds.length} different locations</span>
+              </div>
+            )}
           </div>
           
           <div className="text-right">
@@ -137,13 +156,25 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
           </Alert>
         )}
         
-        <Button 
-          variant="link" 
-          className="mt-2 h-auto p-0 text-sm" 
-          onClick={() => setShowDetails(!showDetails)}
-        >
-          {showDetails ? 'Hide details' : 'Show travel details'}
-        </Button>
+        <div className="flex gap-2 mt-2">
+          <Button 
+            variant="link" 
+            className="h-auto p-0 text-sm" 
+            onClick={() => setShowDetails(!showDetails)}
+          >
+            {showDetails ? 'Hide details' : 'Show travel details'}
+          </Button>
+          
+          {itinerary.length > 0 && (
+            <Button 
+              variant="link" 
+              className="h-auto p-0 text-sm" 
+              onClick={() => setShowItinerary(!showItinerary)}
+            >
+              {showItinerary ? 'Hide itinerary' : 'Show day-by-day plan'}
+            </Button>
+          )}
+        </div>
         
         {showDetails && (
           <div className="mt-3 pt-3 border-t">
@@ -165,6 +196,71 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
                     </span>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {showItinerary && itinerary.length > 0 && (
+          <div className="mt-3 pt-3 border-t">
+            <h4 className="text-sm font-medium mb-2">Day-by-Day Plan with Hotels</h4>
+            <div className="space-y-3 text-sm">
+              {itinerary.map((day) => {
+                const formattedDate = format(day.date, 'MMM d');
+                return (
+                  <div key={day.day} className="border-l-2 pl-3 py-1 border-gray-200">
+                    <div className="flex items-center">
+                      <Calendar className="h-3.5 w-3.5 mr-2" />
+                      <span className="font-medium">Day {day.day} - {formattedDate}</span>
+                      {day.isTransitDay && (
+                        <Badge variant="outline" className="ml-2 text-xs">Transit Day</Badge>
+                      )}
+                    </div>
+                    <div className="mt-1 text-gray-600 pl-6">
+                      <div className="flex items-center text-xs">
+                        <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+                        <span>{day.destinationName}</span>
+                      </div>
+                      {day.activities.map((activity, i) => (
+                        <div key={i} className="flex items-start mt-1">
+                          <span className="mr-1">•</span>
+                          <span className="text-xs">{activity}</span>
+                        </div>
+                      ))}
+                      {!day.isTransitDay && (
+                        <div className="flex items-center mt-1 text-xs">
+                          <Hotel className="h-3 w-3 mr-1 flex-shrink-0" />
+                          <span>Stay at hotel in {day.destinationName}</span>
+                        </div>
+                      )}
+                      {day.isTransitDay && selectedTransportType && (
+                        <div className="flex items-center mt-1 text-xs">
+                          <TransportIcon className="h-3 w-3 mr-1 flex-shrink-0" />
+                          <span>
+                            {selectedTransportType === 'train' ? 'Travel by train' : 
+                             selectedTransportType === 'flight' ? 'Travel by flight' :
+                             selectedTransportType === 'bus' ? 'Travel by bus' : 
+                             'Travel by car'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {isTravelHeavy && (
+              <div className="mt-3">
+                <Alert variant="destructive" className="bg-red-50 border-red-200">
+                  <AlertDescription className="text-xs">
+                    <strong>Note:</strong> This itinerary has significant travel time. 
+                    {selectedTransportType === 'train' && ' Consider overnight trains to save daylight hours.'}
+                    {selectedTransportType === 'bus' && ' Consider overnight buses to save daylight hours.'}
+                    {selectedTransportType === 'car' && ' Consider breaking the journey with overnight stays midway.'}
+                    {selectedTransportType === 'flight' && ' Consider early morning or evening flights to maximize time at destinations.'}
+                  </AlertDescription>
+                </Alert>
               </div>
             )}
           </div>
