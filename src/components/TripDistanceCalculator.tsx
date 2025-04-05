@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Info, MapPin, Clock, Car, Bus, Plane, Train, Calendar, Hotel } from 'lucide-react';
+import { Info, MapPin, Clock, Car, Bus, Plane, Train, Calendar, Hotel, AlertTriangle } from 'lucide-react';
 import { useTripPlanning } from '../context/TripPlanningContext';
 import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
+import { calculateTravelDetails } from '../utils/travelCalculator';
 
 interface TripDistanceCalculatorProps {
   destinationIds: string[];
@@ -56,6 +57,12 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
   // Calculate the percentage of the trip dedicated to travel
   const travelTimePercentage = (totalTravelTime / (numberOfDays * 24)) * 100;
   const isTravelHeavy = travelTimePercentage > 20; // If more than 20% of the trip is spent traveling
+
+  // Get travel details for the selected transportation type
+  const travelDetails = calculateTravelDetails(
+    totalDistance, 
+    selectedTransportType || transportRecommendation.recommendedType
+  );
   
   useEffect(() => {
     // If transport recommendation is available and callback exists, suggest the transport
@@ -198,6 +205,30 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
                 ))}
               </div>
             )}
+
+            {selectedTransportType && (
+              <div className="mt-4">
+                <h4 className="text-sm font-medium mb-2">Transport Details</h4>
+                <div className="bg-gray-50 p-3 rounded-md text-sm">
+                  <div className="flex justify-between mb-2">
+                    <span>Average Speed:</span>
+                    <span className="font-medium">{travelDetails.speed} km/h</span>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <span>Cost per km:</span>
+                    <span className="font-medium">₹{travelDetails.costPerKm}</span>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <span>Best for:</span>
+                    <span className="font-medium">{travelDetails.bestFor}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Overnight option:</span>
+                    <span className="font-medium">{travelDetails.overnightOption ? "Yes" : "No"}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -252,7 +283,9 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
             
             {isTravelHeavy && (
               <div className="mt-3">
-                <Alert variant="destructive" className="bg-red-50 border-red-200">
+                <Alert className="bg-red-50 border-red-200">
+                  <AlertTriangle className="h-4 w-4 text-red-500" />
+                  <AlertTitle className="text-red-700">Transport Scheduling Alert</AlertTitle>
                   <AlertDescription className="text-xs">
                     <strong>Note:</strong> This itinerary has significant travel time. 
                     {selectedTransportType === 'train' && ' Consider overnight trains to save daylight hours.'}
@@ -263,6 +296,32 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
                 </Alert>
               </div>
             )}
+
+            <div className="mt-4 bg-gray-50 p-3 rounded-md">
+              <h4 className="text-sm font-medium mb-2">Hotel & Transport Key Notes</h4>
+              <ul className="space-y-2 text-xs text-gray-700">
+                <li className="flex items-start">
+                  <span className="text-purple-600 mr-2">•</span>
+                  <span>Each destination requires a separate hotel booking.</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-purple-600 mr-2">•</span>
+                  <span>Standard hotel check-in is at 2PM, check-out at 12PM.</span>
+                </li>
+                {selectedTransportType === 'train' || selectedTransportType === 'bus' ? (
+                  <li className="flex items-start">
+                    <span className="text-purple-600 mr-2">•</span>
+                    <span>Overnight {selectedTransportType} options available for long routes.</span>
+                  </li>
+                ) : null}
+                {itinerary.some(day => day.isTransitDay) && (
+                  <li className="flex items-start">
+                    <span className="text-purple-600 mr-2">•</span>
+                    <span>Late arrivals (after 10PM) may require special hotel arrangements.</span>
+                  </li>
+                )}
+              </ul>
+            </div>
           </div>
         )}
       </CardContent>
