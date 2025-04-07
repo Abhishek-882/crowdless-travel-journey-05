@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { 
@@ -26,7 +25,6 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const { saveTripPlan: saveBookingTripPlan } = useBookings();
   const { destinations } = useDestinations();
 
-  // Initialize trip plans from localStorage
   useEffect(() => {
     try {
       const storedTripPlans = localStorage.getItem('tripPlans');
@@ -48,7 +46,6 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, []);
 
-  // Save trip plans to localStorage whenever they change
   useEffect(() => {
     if (tripPlans.length > 0 || !loading) {
       localStorage.setItem('tripPlans', JSON.stringify(tripPlans));
@@ -63,7 +60,6 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return guides.filter(guide => guide.destinationId === destinationId);
   };
 
-  // Calculate distance between two destinations using Haversine formula
   const calculateDistanceBetweenDestinations = (from: Destination, to: Destination): number => {
     const R = 6371; // Earth's radius in km
     const dLat = (to.coordinates.lat - from.coordinates.lat) * Math.PI / 180;
@@ -76,12 +72,9 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return R * c; // Distance in km
   };
 
-  // Calculate travel time between destinations based on transport type
   const calculateTravelTimeBetweenDestinations = (from: Destination, to: Destination, transportType: string): number => {
-    // Calculate distance using coordinates (using Haversine formula)
     const distanceKm = calculateDistanceBetweenDestinations(from, to);
     
-    // Calculate travel time based on transport type
     let speedKmPerHour = 60; // Default speed
     
     if (transportType === 'bus') speedKmPerHour = 50;
@@ -92,7 +85,6 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return distanceKm / speedKmPerHour;
   };
 
-  // Calculate total trip cost based on various factors
   const calculateTripCost = (options: {
     destinationIds: string[];
     guideIds: string[];
@@ -101,37 +93,31 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     numberOfDays: number;
     numberOfPeople: number;
   }) => {
-    // Calculate destinations cost
     const destinationsCost = options.destinationIds.reduce((total, destId) => {
       return total; // Placeholder for actual calculation
     }, 0);
 
-    // Calculate hotels cost based on hotel type
     let totalHotelsCost = 0;
     options.destinationIds.forEach(destId => {
       const hotelsInDestination = getHotelsByDestination(destId);
       const hotel = hotelsInDestination.find(h => h.type === options.hotelType);
       if (hotel) {
-        // Reducing hotel costs as requested
         const pricePerPerson = hotel.type === 'budget' ? 500 :
                               hotel.type === 'standard' ? 1000 : 1500;
         totalHotelsCost += pricePerPerson * options.numberOfPeople * options.numberOfDays;
       }
     });
 
-    // Calculate transport cost
     const transport = transports.find(t => t.type === options.transportType);
     const transportCost = transport 
       ? transport.pricePerPerson * options.numberOfPeople * options.destinationIds.length
       : 0;
 
-    // Calculate guides cost
     const guidesCost = options.guideIds.reduce((total, guideId) => {
       const guide = guides.find(g => g.id === guideId);
       return total + (guide ? guide.pricePerDay * options.numberOfDays : 0);
     }, 0);
 
-    // Calculate total cost
     const totalCost = destinationsCost + totalHotelsCost + transportCost + guidesCost;
 
     return {
@@ -143,7 +129,6 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     };
   };
 
-  // Get detailed distance matrix between all selected destinations
   const getDistanceMatrix = (destinationIds: string[]): {
     fromId: string;
     toId: string;
@@ -151,7 +136,7 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     toName: string;
     distanceKm: number;
     travelTimesByTransport: {
-      [key: string]: number; // transport type -> hours
+      [key: string]: number;
     };
   }[] => {
     const selectedDestinations = destinationIds.map(id => 
@@ -171,7 +156,6 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
       };
     }[] = [];
     
-    // Calculate distances between each pair of destinations
     for (let i = 0; i < selectedDestinations.length - 1; i++) {
       for (let j = i + 1; j < selectedDestinations.length; j++) {
         const from = selectedDestinations[i];
@@ -179,7 +163,6 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
         
         const distanceKm = calculateDistanceBetweenDestinations(from, to);
         
-        // Calculate travel times for different transport types
         const travelTimesByTransport = {
           'bus': calculateTravelTimeBetweenDestinations(from, to, 'bus'),
           'train': calculateTravelTimeBetweenDestinations(from, to, 'train'),
@@ -187,7 +170,6 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
           'car': calculateTravelTimeBetweenDestinations(from, to, 'car')
         };
         
-        // Add to matrix (both directions)
         matrix.push({
           fromId: from.id,
           toId: to.id,
@@ -210,8 +192,7 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     
     return matrix;
   };
-  
-  // Get suggested transport type based on distances and time constraints
+
   const getSuggestedTransport = (
     destinationIds: string[], 
     numberOfDays: number, 
@@ -232,17 +213,15 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
         reasoning: 'Single destination selected, any transport is suitable.',
         totalDistanceKm: 0,
         totalTravelTimeHours: 0,
-        timeForSightseeing: numberOfDays * 8, // Assuming 8 hours per day for sightseeing
+        timeForSightseeing: numberOfDays * 8,
         isRealistic: true
       };
     }
     
-    // Get all selected destinations
     const selectedDestinations = destinationIds.map(id => 
       destinations.find(d => d.id === id)
     ).filter(Boolean) as Destination[];
     
-    // Calculate total distance
     let totalDistanceKm = 0;
     for (let i = 0; i < selectedDestinations.length - 1; i++) {
       const from = selectedDestinations[i];
@@ -250,7 +229,6 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
       totalDistanceKm += calculateDistanceBetweenDestinations(from, to);
     }
     
-    // Calculate travel times for different transport types
     const travelTimes: Record<string, number> = {
       'bus': 0,
       'train': 0,
@@ -264,12 +242,11 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
       
       travelTimes.bus += calculateTravelTimeBetweenDestinations(from, to, 'bus');
       travelTimes.train += calculateTravelTimeBetweenDestinations(from, to, 'train');
-      travelTimes.flight += calculateTravelTimeBetweenDestinations(from, to, 'flight') + 3; // Add 3 hours for airport procedures
+      travelTimes.flight += calculateTravelTimeBetweenDestinations(from, to, 'flight') + 3;
       travelTimes.car += calculateTravelTimeBetweenDestinations(from, to, 'car');
     }
     
-    // Calculate available time for activities
-    const totalTripHours = numberOfDays * 8; // Assuming 8 active hours per day
+    const totalTripHours = numberOfDays * 8;
     const timeForSightseeing: Record<string, number> = {
       'bus': totalTripHours - travelTimes.bus,
       'train': totalTripHours - travelTimes.train,
@@ -277,13 +254,10 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
       'car': totalTripHours - travelTimes.car
     };
     
-    // Find the optimal transport type
     const transportTypes = ['bus', 'train', 'flight', 'car'] as const;
     const viableTransports = transportTypes.filter(type => timeForSightseeing[type] > 0);
     
     if (viableTransports.length === 0) {
-      // No viable transport option found
-      // Find the least bad option
       const leastBadOption = transportTypes.reduce((best, current) => 
         timeForSightseeing[current] > timeForSightseeing[best] ? current : best
       );
@@ -303,40 +277,33 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
       };
     }
     
-    // Determine the best option based on distance
     let recommendedType: 'bus' | 'train' | 'flight' | 'car';
     let alternativeType: 'bus' | 'train' | 'flight' | 'car' | undefined;
     let reasoning = '';
     
     if (totalDistanceKm > 1500) {
-      // Long distance - recommend flight
       recommendedType = 'flight';
       alternativeType = 'train';
       reasoning = 'Long distances between destinations make flights the most time-efficient option.';
     } else if (totalDistanceKm > 800) {
-      // Medium-long distance - recommend train or flight
       recommendedType = 'train';
       alternativeType = 'flight';
       reasoning = 'Moderate to long distances are well-suited for train travel, with flights as an alternative for saving time.';
     } else if (totalDistanceKm > 300) {
-      // Medium distance - recommend train or car
       recommendedType = 'train';
       alternativeType = 'car';
       reasoning = 'Medium distances are ideal for train travel, offering a balance of comfort and sightseeing.';
     } else {
-      // Short distance - recommend car or bus
       recommendedType = 'car';
       alternativeType = 'bus';
       reasoning = 'Shorter distances are perfect for road travel, offering flexibility to stop at points of interest.';
     }
     
-    // Make sure the recommended type is viable
     if (!viableTransports.includes(recommendedType)) {
       recommendedType = viableTransports[0];
       reasoning = 'Original recommendation adjusted due to time constraints.';
     }
     
-    // Add premium advantages
     const premiumAdvantages = isPremium ? [
       'Real-time traffic and crowd avoidance routes',
       'VIP access at stations/airports saves up to 45 minutes per transit',
@@ -361,23 +328,18 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setLoading(true);
 
     try {
-      // Simulate network request
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      // Generate a new trip plan ID
       const newTripPlanId = `trip_${uuidv4()}`;
 
-      // Create new trip plan
       const newTripPlan: TripPlan = {
         ...tripPlanData,
         id: newTripPlanId,
         createdAt: new Date().toISOString(),
       };
 
-      // Add to trip plans array
       setTripPlans((prev) => [...prev, newTripPlan]);
 
-      // Also save the trip plan to the bookings context to ensure it appears in booking history
       await saveBookingTripPlan(tripPlanData);
       
       toast({
@@ -413,22 +375,18 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setLoading(true);
 
     try {
-      // Simulate network request
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Find trip plan index
       const tripPlanIndex = tripPlans.findIndex((plan) => plan.id === tripPlanId);
       if (tripPlanIndex === -1) {
         throw new Error('Trip plan not found');
       }
 
-      // Update trip plan status
       const updatedTripPlan: TripPlan = {
         ...tripPlans[tripPlanIndex],
         status: 'cancelled',
       };
 
-      // Update trip plans array
       const updatedTripPlans = [...tripPlans];
       updatedTripPlans[tripPlanIndex] = updatedTripPlan;
       setTripPlans(updatedTripPlans);
@@ -457,42 +415,85 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     numberOfDays: number;
   }) => {
     if (options.destinationIds.length <= 1) {
-      return { feasible: true, daysNeeded: options.numberOfDays };
+      return { 
+        feasible: true, 
+        daysNeeded: options.numberOfDays,
+        breakdown: options.destinationIds.map(id => {
+          const dest = destinations.find(d => d.id === id);
+          return {
+            destinationId: id,
+            destinationName: dest?.name || 'Unknown',
+            daysNeeded: 1,
+            travelHoursToNext: 0,
+            travelDaysToNext: 0
+          };
+        })
+      };
     }
     
-    // Get destinations data
     const selectedDestinations = options.destinationIds.map(id => 
       destinations.find(dest => dest.id === id)
     ).filter(Boolean) as Destination[];
     
     if (selectedDestinations.length <= 1) {
-      return { feasible: true, daysNeeded: options.numberOfDays };
+      return { 
+        feasible: true, 
+        daysNeeded: options.numberOfDays,
+        breakdown: options.destinationIds.map(id => {
+          const dest = destinations.find(d => d.id === id);
+          return {
+            destinationId: id,
+            destinationName: dest?.name || 'Unknown',
+            daysNeeded: 1,
+            travelHoursToNext: 0,
+            travelDaysToNext: 0
+          };
+        })
+      };
     }
     
-    // Calculate minimum visit time per destination (1 day)
-    const visitDaysNeeded = selectedDestinations.length;
+    const { calculateRequiredDays } = require('../utils/travelCalculator');
     
-    // Calculate travel time between destinations
-    let totalTravelTimeHours = 0;
-    for (let i = 0; i < selectedDestinations.length - 1; i++) {
-      const from = selectedDestinations[i];
-      const to = selectedDestinations[i + 1];
-      totalTravelTimeHours += calculateTravelTimeBetweenDestinations(from, to, options.transportType);
-    }
+    const getDistanceById = (fromId: string, toId: string): number => {
+      const fromDest = destinations.find(d => d.id === fromId);
+      const toDest = destinations.find(d => d.id === toId);
+      
+      if (!fromDest || !toDest) return 0;
+      
+      return calculateDistanceBetweenDestinations(fromDest, toDest);
+    };
     
-    // Convert travel hours to days (assume 8 hours of travel per day)
-    const travelDaysNeeded = Math.ceil(totalTravelTimeHours / 8);
+    const calculation = calculateRequiredDays(
+      {
+        destinationIds: options.destinationIds,
+        transportType: options.transportType,
+        tourismHoursPerDestination: 8,
+        travelStartHour: 8,
+        maxTravelHoursPerDay: 10
+      },
+      getDistanceById
+    );
     
-    // Total days needed = visit days + travel days
-    const totalDaysNeeded = visitDaysNeeded + travelDaysNeeded;
+    const breakdown = calculation.breakdownByDestination.map(item => {
+      const dest = destinations.find(d => d.id === item.destinationId);
+      return {
+        ...item,
+        destinationName: dest?.name || 'Unknown'
+      };
+    });
+    
+    const totalDaysNeeded = calculation.minDaysRequired;
     
     return {
       feasible: totalDaysNeeded <= options.numberOfDays,
       daysNeeded: totalDaysNeeded,
-      daysShort: totalDaysNeeded - options.numberOfDays
+      daysShort: Math.max(0, totalDaysNeeded - options.numberOfDays),
+      breakdown,
+      totalDistance: calculation.totalDistanceKm,
+      totalTravelHours: calculation.totalTravelHours
     };
   };
-  
+
   const generateOptimalItinerary = (options: {
     destinationIds: string[];
     transportType: 'bus' | 'train' | 'flight' | 'car';
@@ -509,12 +510,10 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     let currentDate = new Date(options.startDate);
     let currentDestIndex = 0;
     
-    // Create day-by-day itinerary
     for (let day = 1; day <= options.numberOfDays; day++) {
       if (currentDestIndex < selectedDestinations.length) {
         const destination = selectedDestinations[currentDestIndex];
         
-        // Add a day at this destination
         itinerary.push({
           day,
           date: new Date(currentDate),
@@ -524,7 +523,6 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
           isTransitDay: false
         });
         
-        // Check if we need to travel to the next destination
         if (currentDestIndex < selectedDestinations.length - 1) {
           const nextDest = selectedDestinations[currentDestIndex + 1];
           const travelTime = calculateTravelTimeBetweenDestinations(
@@ -533,9 +531,7 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
             options.transportType
           );
           
-          // If travel time > 4 hours, next day will be transit day
           if (travelTime > 4) {
-            // Add a transit day
             currentDate.setDate(currentDate.getDate() + 1);
             day++;
             

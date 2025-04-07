@@ -1,4 +1,3 @@
-
 export type User = {
   id: string;
   email: string;
@@ -202,6 +201,15 @@ export type TripPlanningContextType = {
     feasible: boolean;
     daysNeeded: number;
     daysShort?: number;
+    breakdown?: {
+      destinationId: string;
+      destinationName: string;
+      daysNeeded: number;
+      travelHoursToNext: number;
+      travelDaysToNext: number;
+    }[];
+    totalDistance?: number;
+    totalTravelHours?: number;
   };
   generateOptimalItinerary: (options: {
     destinationIds: string[];

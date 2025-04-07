@@ -18,6 +18,7 @@ interface TripDistanceCalculatorProps {
   startDate?: Date;
   selectedTransportType?: 'bus' | 'train' | 'flight' | 'car';
   onSuggestTransport?: (transportType: 'bus' | 'train' | 'flight' | 'car') => void;
+  onSuggestDays?: (daysNeeded: number) => void;
 }
 
 const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({ 
@@ -25,9 +26,10 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
   numberOfDays,
   startDate,
   selectedTransportType,
-  onSuggestTransport 
+  onSuggestTransport,
+  onSuggestDays
 }) => {
-  const { getDistanceMatrix, getSuggestedTransport, getHotelsByDestination, generateOptimalItinerary } = useTripPlanning();
+  const { getDistanceMatrix, getSuggestedTransport, getHotelsByDestination, generateOptimalItinerary, checkTripFeasibility } = useTripPlanning();
   const { currentUser } = useAuth();
   const [showDetails, setShowDetails] = useState(false);
   const [showItinerary, setShowItinerary] = useState(false);
@@ -41,6 +43,13 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
     numberOfDays, 
     currentUser?.isPremium
   );
+
+  // Check if the trip is feasible with current transport and days
+  const feasibilityCheck = checkTripFeasibility({
+    destinationIds,
+    transportType: selectedTransportType || transportRecommendation.recommendedType,
+    numberOfDays
+  });
 
   // Generate an optimal itinerary if we have a start date
   const itinerary = startDate ? 
@@ -63,6 +72,14 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
     totalDistance, 
     selectedTransportType || transportRecommendation.recommendedType
   );
+  
+  // If the trip is not feasible, suggest the required number of days
+  useEffect(() => {
+    if (!feasibilityCheck.feasible && onSuggestDays && feasibilityCheck.daysNeeded) {
+      // Optional: auto-suggest days (can be commented if you want manual suggestion)
+      // onSuggestDays(feasibilityCheck.daysNeeded);
+    }
+  }, [feasibilityCheck, onSuggestDays]);
   
   useEffect(() => {
     // If transport recommendation is available and callback exists, suggest the transport
@@ -97,6 +114,23 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
               <div className="flex items-center text-sm text-gray-500 mt-1">
                 <Hotel className="h-3.5 w-3.5 mr-1" />
                 <span>Hotels needed: {destinationIds.length} different locations</span>
+              </div>
+            )}
+            
+            {!feasibilityCheck.feasible && (
+              <div className="flex items-center text-sm text-amber-600 mt-1 font-medium">
+                <Calendar className="h-3.5 w-3.5 mr-1" />
+                <span>Recommended days: {feasibilityCheck.daysNeeded}</span>
+                {onSuggestDays && (
+                  <Button 
+                    variant="link" 
+                    size="sm" 
+                    className="text-xs p-0 h-auto ml-1" 
+                    onClick={() => onSuggestDays(feasibilityCheck.daysNeeded || numberOfDays)}
+                  >
+                    Use this
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -151,8 +185,30 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
             </ul>
           </div>
         )}
+
+        {!feasibilityCheck.feasible && (
+          <Alert className="mt-3 bg-amber-50">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Days Adjustment Needed</AlertTitle>
+            <AlertDescription className="text-sm">
+              <p>Your trip requires at least <strong>{feasibilityCheck.daysNeeded}</strong> days with the current transport and destinations.</p>
+              {feasibilityCheck.daysShort && feasibilityCheck.daysShort > 0 && (
+                <p className="mt-1">You need <strong>{feasibilityCheck.daysShort} more {feasibilityCheck.daysShort === 1 ? 'day' : 'days'}</strong> or consider changing transport or reducing destinations.</p>
+              )}
+              {onSuggestDays && (
+                <Button 
+                  size="sm" 
+                  className="mt-2" 
+                  onClick={() => onSuggestDays(feasibilityCheck.daysNeeded || numberOfDays)}
+                >
+                  Adjust to {feasibilityCheck.daysNeeded} days
+                </Button>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
         
-        {isTravelHeavy && (
+        {isTravelHeavy && feasibilityCheck.feasible && (
           <Alert className="mt-3 bg-amber-50">
             <Info className="h-4 w-4" />
             <AlertTitle>Travel-Heavy Trip</AlertTitle>
@@ -226,6 +282,31 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
                     <span>Overnight option:</span>
                     <span className="font-medium">{travelDetails.overnightOption ? "Yes" : "No"}</span>
                   </div>
+                </div>
+              </div>
+            )}
+            
+            {!feasibilityCheck.feasible && feasibilityCheck.breakdown && (
+              <div className="mt-4">
+                <h4 className="text-sm font-medium mb-2">Required Days Breakdown</h4>
+                <div className="bg-gray-50 p-3 rounded-md text-sm">
+                  {feasibilityCheck.breakdown.map((item, i) => (
+                    <div key={i} className="mb-2 pb-2 border-b border-gray-100 last:border-b-0 last:mb-0 last:pb-0">
+                      <div className="flex justify-between mb-1">
+                        <span className="font-medium">{item.destinationName}</span>
+                        <span>{item.daysNeeded} day{item.daysNeeded !== 1 ? 's' : ''}</span>
+                      </div>
+                      {item.travelHoursToNext > 0 && (
+                        <div className="flex justify-between text-xs text-gray-600">
+                          <span>Travel to next destination:</span>
+                          <span>
+                            {Math.round(item.travelHoursToNext)} hours
+                            {item.travelDaysToNext > 0 && ` (${item.travelDaysToNext} day${item.travelDaysToNext !== 1 ? 's' : ''})`}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

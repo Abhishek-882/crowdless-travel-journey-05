@@ -124,3 +124,136 @@ export const estimateTripCost = (
     totalCost: transportCost + hotelCost
   };
 };
+
+/**
+ * Calculates the minimum number of days required for a trip
+ */
+export const calculateRequiredDays = (
+  options: {
+    destinationIds: string[];
+    transportType: 'bus' | 'train' | 'flight' | 'car';
+    tourismHoursPerDestination?: number; // How many hours to spend at each destination
+    travelStartHour?: number; // When travel typically starts (e.g., 8 AM)
+    maxTravelHoursPerDay?: number; // Maximum travel hours per day if not overnight
+  },
+  getDistanceBetweenDestinations: (fromId: string, toId: string) => number
+): {
+  minDaysRequired: number;
+  travelDays: number;
+  tourismDays: number;
+  totalDistanceKm: number;
+  totalTravelHours: number;
+  isOvernight: boolean[];
+  breakdownByDestination: {
+    destinationId: string;
+    daysNeeded: number;
+    travelHoursToNext: number;
+    travelDaysToNext: number;
+  }[];
+} => {
+  const { 
+    destinationIds, 
+    transportType, 
+    tourismHoursPerDestination = 8, // Default: spend 8 hours (1 day) at each destination
+    travelStartHour = 8, // Default: start travel at 8 AM
+    maxTravelHoursPerDay = 10 // Default: maximum 10 hours of travel per day
+  } = options;
+  
+  // If less than 2 destinations, return 1 day per destination
+  if (destinationIds.length <= 1) {
+    return {
+      minDaysRequired: destinationIds.length,
+      travelDays: 0,
+      tourismDays: destinationIds.length,
+      totalDistanceKm: 0,
+      totalTravelHours: 0,
+      isOvernight: [],
+      breakdownByDestination: destinationIds.map(id => ({
+        destinationId: id,
+        daysNeeded: 1,
+        travelHoursToNext: 0,
+        travelDaysToNext: 0
+      }))
+    };
+  }
+  
+  let totalTravelHours = 0;
+  let totalDistanceKm = 0;
+  const isOvernight: boolean[] = [];
+  const breakdown: {
+    destinationId: string;
+    daysNeeded: number;
+    travelHoursToNext: number;
+    travelDaysToNext: number;
+  }[] = [];
+  
+  // Calculate travel times between each destination
+  for (let i = 0; i < destinationIds.length - 1; i++) {
+    const fromId = destinationIds[i];
+    const toId = destinationIds[i + 1];
+    
+    // Get distance between these destinations
+    const distanceKm = getDistanceBetweenDestinations(fromId, toId);
+    totalDistanceKm += distanceKm;
+    
+    // Calculate travel time for this segment
+    const travelHours = calculateTravelTime(distanceKm, transportType);
+    totalTravelHours += travelHours;
+    
+    // Check if overnight travel is possible for this transport type
+    const transportDetails = calculateTravelDetails(distanceKm, transportType);
+    
+    // Check if hotel is needed based on arrival time
+    const hotelCheck = isHotelNeeded(travelHours, travelStartHour);
+    const needsOvernight = hotelCheck.needed && transportDetails.overnightOption;
+    isOvernight.push(needsOvernight);
+    
+    // Calculate travel days for this segment
+    let travelDaysForSegment = 0;
+    
+    if (needsOvernight) {
+      // If overnight travel is possible, it takes 1 day regardless of duration
+      travelDaysForSegment = 1;
+    } else {
+      // If not overnight, calculate based on max travel hours per day
+      travelDaysForSegment = Math.ceil(travelHours / maxTravelHoursPerDay);
+    }
+    
+    // Add to breakdown
+    breakdown.push({
+      destinationId: fromId,
+      daysNeeded: Math.ceil(tourismHoursPerDestination / 8), // Convert tourism hours to days
+      travelHoursToNext: travelHours,
+      travelDaysToNext: travelDaysForSegment
+    });
+    
+    // If we're at the last destination, add it to breakdown with no travel to next
+    if (i === destinationIds.length - 2) {
+      breakdown.push({
+        destinationId: toId,
+        daysNeeded: Math.ceil(tourismHoursPerDestination / 8),
+        travelHoursToNext: 0,
+        travelDaysToNext: 0
+      });
+    }
+  }
+  
+  // Calculate tourism days (1 day per destination)
+  const tourismDays = destinationIds.length;
+  
+  // Calculate travel days (accounting for overnight options)
+  const travelDays = breakdown.reduce((sum, item) => sum + item.travelDaysToNext, 0);
+  
+  // Total days needed = tourism days + travel days
+  const minDaysRequired = tourismDays + travelDays;
+  
+  return {
+    minDaysRequired,
+    travelDays,
+    tourismDays,
+    totalDistanceKm,
+    totalTravelHours,
+    isOvernight,
+    breakdownByDestination: breakdown
+  };
+};

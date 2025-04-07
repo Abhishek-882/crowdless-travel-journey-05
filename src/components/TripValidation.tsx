@@ -2,13 +2,25 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertTriangle, Clock } from 'lucide-react';
+import { AlertTriangle, Clock, CalendarDays, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
+interface TripBreakdownItem {
+  destinationId: string;
+  destinationName: string;
+  daysNeeded: number;
+  travelHoursToNext: number;
+  travelDaysToNext: number;
+}
 
 interface TripValidationProps {
   feasible: boolean;
   daysNeeded?: number;
   daysShort?: number;
+  breakdown?: TripBreakdownItem[];
+  transportType?: 'bus' | 'train' | 'flight' | 'car';
+  totalDistance?: number;
+  totalTravelHours?: number;
   onAdjustDays: () => void;
   onContinue: () => void;
   isPremium?: boolean;
@@ -18,6 +30,10 @@ const TripValidation: React.FC<TripValidationProps> = ({
   feasible, 
   daysNeeded, 
   daysShort, 
+  breakdown,
+  transportType,
+  totalDistance,
+  totalTravelHours,
   onAdjustDays, 
   onContinue,
   isPremium
@@ -42,10 +58,40 @@ const TripValidation: React.FC<TripValidationProps> = ({
       <AlertTriangle className="h-4 w-4 text-amber-600" />
       <AlertTitle className="text-amber-700">Trip needs more days</AlertTitle>
       <AlertDescription className="text-amber-600">
-        <p className="mb-3">
+        <p className="mb-2">
           Your selected destinations require at least <strong>{daysNeeded}</strong> days to visit comfortably 
           ({daysShort && <span>{daysShort} more {daysShort === 1 ? 'day' : 'days'} needed</span>}).
         </p>
+        
+        {breakdown && breakdown.length > 0 && (
+          <div className="mb-3 mt-2 text-sm bg-white/70 p-2 rounded">
+            <h4 className="font-medium mb-1">Trip breakdown</h4>
+            <div className="space-y-1">
+              {breakdown.map((item, index) => (
+                <div key={index} className="flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    <span>{item.destinationName}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs">{item.daysNeeded} day{item.daysNeeded > 1 ? 's' : ''}</span>
+                    {item.travelDaysToNext > 0 && (
+                      <span className="text-xs">+ {item.travelDaysToNext} day{item.travelDaysToNext > 1 ? 's' : ''} travel</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {totalDistance && totalTravelHours && transportType && (
+              <div className="mt-2 text-xs">
+                <div>Total distance: {Math.round(totalDistance)} km</div>
+                <div>Travel time: {Math.round(totalTravelHours * 10) / 10} hours by {transportType}</div>
+              </div>
+            )}
+          </div>
+        )}
+        
         <div className="flex flex-wrap gap-2">
           <Button 
             size="sm" 
