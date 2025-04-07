@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useBookings } from './BookingContext';
 import { useDestinations } from './DestinationContext';
 import { calculateRequiredDays } from '../utils/travelCalculator';
+import { getSuggestedTransport as getTransportSuggestion } from '../utils/tripValidationUtils';
 
 const TripPlanningContext = createContext<TripPlanningContextType | undefined>(undefined);
 
@@ -217,73 +218,7 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     isRealistic: boolean;
     premiumAdvantages?: string[];
   } => {
-    if (!destinationIds || destinationIds.length <= 1) {
-      return {
-        recommendedType: 'car',
-        reasoning: 'Single destination selected, any transport is suitable.',
-        totalDistanceKm: 0,
-        totalTravelTimeHours: 0,
-        timeForSightseeing: (numberOfDays || 1) * 8,
-        isRealistic: true
-      };
-    }
-    
-    const selectedDestinations = destinationIds.map(id => 
-      destinations.find(dest => dest.id === id)
-    ).filter(Boolean) as Destination[];
-    
-    if (selectedDestinations.length <= 1) {
-      return {
-        recommendedType: 'car',
-        reasoning: 'Single destination selected, any transport is suitable.',
-        totalDistanceKm: 0,
-        totalTravelTimeHours: 0,
-        timeForSightseeing: (numberOfDays || 1) * 8,
-        isRealistic: true
-      };
-    }
-    
-    const getDistanceById = (fromId: string, toId: string): number => {
-      const fromDest = destinations.find(d => d.id === fromId);
-      const toDest = destinations.find(d => d.id === toId);
-      
-      if (!fromDest || !toDest) return 0;
-      
-      return calculateDistanceBetweenDestinations(fromDest, toDest);
-    };
-    
-    const calculation = calculateRequiredDays(
-      {
-        destinationIds: options.destinationIds,
-        transportType: options.transportType,
-        tourismHoursPerDestination: 8,
-        travelStartHour: 8,
-        maxTravelHoursPerDay: 10
-      },
-      getDistanceById
-    );
-    
-    const breakdown = calculation.breakdownByDestination.map(item => {
-      const dest = destinations.find(d => d.id === item.destinationId);
-      return {
-        ...item,
-        destinationName: dest?.name || 'Unknown'
-      };
-    });
-    
-    const totalDaysNeeded = calculation.minDaysRequired;
-    const currentDays = options.numberOfDays || 1;
-    
-    return {
-      recommendedType,
-      alternativeType,
-      reasoning,
-      totalDistanceKm,
-      totalTravelTimeHours: travelTimes[recommendedType],
-      timeForSightseeing: timeForSightseeing[recommendedType],
-      isRealistic: timeForSightseeing[recommendedType] > 0,
-      premiumAdvantages
-    };
+    return getTransportSuggestion(destinations, destinationIds, numberOfDays, isPremium);
   };
 
   const saveTripPlan = async (tripPlanData: Omit<TripPlan, 'id' | 'createdAt'>): Promise<string> => {
