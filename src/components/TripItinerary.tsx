@@ -17,7 +17,7 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
   transportType,
   isPremium
 }) => {
-  if (!itinerary.length) {
+  if (!itinerary || !itinerary.length) {
     return (
       <div className="text-center p-6 bg-gray-50 rounded-lg">
         <div className="text-gray-500">Itinerary will be generated once you've selected destinations and dates.</div>
@@ -71,7 +71,7 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
                       </Badge>
                     ) : (
                       <ul className="mt-2 text-sm space-y-1.5">
-                        {day.activities.map((activity, i) => (
+                        {day.activities && day.activities.map((activity, i) => (
                           <li key={i} className="flex items-start">
                             <span className="text-slate-400 mr-2">•</span>
                             <span className="text-slate-700">{activity}</span>

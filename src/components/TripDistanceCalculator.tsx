@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,46 +33,41 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
   const [showDetails, setShowDetails] = useState(false);
   const [showItinerary, setShowItinerary] = useState(false);
   
-  // Get distances between all destinations
-  const distanceMatrix = getDistanceMatrix(destinationIds);
+  const safeDestinationIds = destinationIds?.length ? destinationIds : [];
   
-  // Get suggested transport options based on destinations and trip duration
+  const distanceMatrix = getDistanceMatrix(safeDestinationIds);
+  
   const transportRecommendation = getSuggestedTransport(
-    destinationIds, 
-    numberOfDays, 
+    safeDestinationIds, 
+    numberOfDays || 1, 
     currentUser?.isPremium
   );
 
-  // Check if the trip is feasible with current transport and days
   const feasibilityCheck = checkTripFeasibility({
-    destinationIds,
-    transportType: selectedTransportType || transportRecommendation.recommendedType,
-    numberOfDays
+    destinationIds: safeDestinationIds,
+    transportType: selectedTransportType || transportRecommendation?.recommendedType || 'car',
+    numberOfDays: numberOfDays || 1
   });
 
-  // Generate an optimal itinerary if we have a start date
   const itinerary = startDate ? 
     generateOptimalItinerary({
-      destinationIds,
-      transportType: selectedTransportType || transportRecommendation.recommendedType,
-      numberOfDays,
+      destinationIds: safeDestinationIds,
+      transportType: selectedTransportType || transportRecommendation?.recommendedType || 'car',
+      numberOfDays: numberOfDays || 1,
       startDate
     }) : [];
 
-  const totalTravelTime = transportRecommendation.totalTravelTimeHours;
-  const totalDistance = transportRecommendation.totalDistanceKm;
+  const totalTravelTime = transportRecommendation?.totalTravelTimeHours || 0;
+  const totalDistance = transportRecommendation?.totalDistanceKm || 0;
   
-  // Calculate the percentage of the trip dedicated to travel
-  const travelTimePercentage = (totalTravelTime / (numberOfDays * 24)) * 100;
+  const travelTimePercentage = numberOfDays ? ((totalTravelTime / (numberOfDays * 24)) * 100) : 0;
   const isTravelHeavy = travelTimePercentage > 20; // If more than 20% of the trip is spent traveling
 
-  // Get travel details for the selected transportation type
   const travelDetails = calculateTravelDetails(
     totalDistance, 
-    selectedTransportType || transportRecommendation.recommendedType
+    selectedTransportType || transportRecommendation?.recommendedType || 'car'
   );
   
-  // If the trip is not feasible, suggest the required number of days
   useEffect(() => {
     if (!feasibilityCheck.feasible && onSuggestDays && feasibilityCheck.daysNeeded) {
       // Optional: auto-suggest days (can be commented if you want manual suggestion)
@@ -82,7 +76,6 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
   }, [feasibilityCheck, onSuggestDays]);
   
   useEffect(() => {
-    // If transport recommendation is available and callback exists, suggest the transport
     if (transportRecommendation && onSuggestTransport && !selectedTransportType) {
       onSuggestTransport(transportRecommendation.recommendedType);
     }
@@ -95,6 +88,18 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
       : selectedTransportType === 'flight' 
         ? Plane 
         : Car;
+
+  if (!safeDestinationIds.length) {
+    return (
+      <Card className="border-dashed border-gray-300">
+        <CardContent className="p-4">
+          <div className="text-center py-4">
+            <p className="text-gray-500">Select destinations to see trip distance analysis</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="border-dashed border-gray-300">
@@ -110,10 +115,10 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
               <Clock className="h-3.5 w-3.5 mr-1" />
               <span>Travel time: ~{Math.round(totalTravelTime)} hours</span>
             </div>
-            {destinationIds.length > 1 && (
+            {safeDestinationIds.length > 1 && (
               <div className="flex items-center text-sm text-gray-500 mt-1">
                 <Hotel className="h-3.5 w-3.5 mr-1" />
-                <span>Hotels needed: {destinationIds.length} different locations</span>
+                <span>Hotels needed: {safeDestinationIds.length} different locations</span>
               </div>
             )}
             
@@ -136,7 +141,7 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
           </div>
           
           <div className="text-right">
-            {transportRecommendation.recommendedType && (
+            {transportRecommendation?.recommendedType && (
               <div className="mb-2">
                 <Label className="text-sm font-normal text-gray-500">Recommended:</Label>
                 <div className="flex items-center justify-end">
@@ -158,7 +163,7 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
               </div>
             )}
             
-            {onSuggestTransport && transportRecommendation.recommendedType && !selectedTransportType && (
+            {onSuggestTransport && transportRecommendation?.recommendedType && !selectedTransportType && (
               <Button 
                 size="sm" 
                 variant="outline"
