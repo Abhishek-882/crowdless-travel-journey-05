@@ -1,4 +1,3 @@
-
 import { Destination } from '../types';
 
 /**
@@ -189,4 +188,55 @@ export const generateOptimalItinerary = (
   }
   
   return itinerary;
+};
+
+/**
+ * Calculate travel details for a specific transport type
+ */
+export const calculateTravelDetails = (
+  totalDistance: number,
+  transportType: 'bus' | 'train' | 'flight' | 'car'
+): {
+  speed: number;
+  costPerKm: number;
+  bestFor: string;
+  overnightOption: boolean;
+} => {
+  switch (transportType) {
+    case 'bus':
+      return {
+        speed: 45,
+        costPerKm: 1.5,
+        bestFor: 'Budget travel, regional exploration',
+        overnightOption: true
+      };
+    case 'train':
+      return {
+        speed: 60,
+        costPerKm: 2,
+        bestFor: 'Comfort, scenic views, no traffic',
+        overnightOption: true
+      };
+    case 'flight':
+      return {
+        speed: 500,
+        costPerKm: 6,
+        bestFor: 'Long distances, saving time',
+        overnightOption: false
+      };
+    case 'car':
+      return {
+        speed: 50,
+        costPerKm: 3,
+        bestFor: 'Flexibility, impromptu stops, rural areas',
+        overnightOption: false
+      };
+    default:
+      return {
+        speed: 50,
+        costPerKm: 3,
+        bestFor: 'Flexible travel',
+        overnightOption: false
+      };
+  }
 };

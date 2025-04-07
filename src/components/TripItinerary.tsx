@@ -51,7 +51,7 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
               <span className="text-xs font-medium">{day.day}</span>
             </div>
             
-            <Card className={`shadow-sm ${day.isTransitDay ? 'border-blue-100 bg-blue-50/50' : 'border-slate-100'}`}>
+            <Card className={day.isTransitDay ? 'border-blue-100 bg-blue-50/50' : 'border-slate-100'}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div className="space-y-2">
@@ -66,7 +66,7 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
                     </div>
                     
                     {day.isTransitDay ? (
-                      <Badge className="mt-1" variant="secondary" className="border border-blue-200 bg-blue-100/60 text-blue-700">
+                      <Badge variant="secondary" className="mt-1 border border-blue-200 bg-blue-100/60 text-blue-700">
                         Transit Day
                       </Badge>
                     ) : (
