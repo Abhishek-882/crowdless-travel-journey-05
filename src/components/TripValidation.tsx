@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertTriangle, Clock, CalendarDays, MapPin, Info, Check, ArrowRight, Timer } from 'lucide-react';
+import { AlertTriangle, Clock, CalendarDays, MapPin, Info, Check, ArrowRight, Timer, CheckCircle, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -52,6 +52,10 @@ const TripValidation: React.FC<TripValidationProps> = ({
     ? Math.round((totalTravelHours / (daysNeeded * 24)) * 100) 
     : 0;
 
+  // Calculate accommodations needed
+  const uniqueDestinations = breakdown ? 
+    [...new Set(breakdown.map(item => item.destinationName))].length : 0;
+
   if (feasible) {
     return (
       <Alert className="mb-6 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
@@ -60,24 +64,122 @@ const TripValidation: React.FC<TripValidationProps> = ({
         <AlertDescription className="text-green-600">
           <div className="mt-2">
             <p>Your destinations can be comfortably visited within your selected timeframe using {transportType} transport.</p>
+            
             {totalDistance && totalTravelHours && (
-              <div className="flex flex-wrap gap-x-6 gap-y-2 mt-3 text-sm">
-                <div className="flex items-center">
-                  <MapPin className="h-4 w-4 mr-1.5" />
-                  <span>Total distance: <strong>{Math.round(totalDistance)} km</strong></span>
-                </div>
-                <div className="flex items-center">
-                  <Clock className="h-4 w-4 mr-1.5" />
-                  <span>Total travel: <strong>{Math.round(totalTravelHours)} hours</strong></span>
-                </div>
-                {travelPercentage > 0 && (
+              <div className="mt-4 p-3 bg-white/70 rounded-md border border-green-100">
+                <div className="text-sm font-medium text-green-800 mb-2">Trip Distance Analysis</div>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                   <div className="flex items-center">
-                    <Timer className="h-4 w-4 mr-1.5" />
-                    <span>Travel time: <strong>{travelPercentage}% of your trip</strong></span>
+                    <MapPin className="h-4 w-4 mr-1.5 text-green-600" />
+                    <span>Total distance:</span>
+                  </div>
+                  <div className="font-medium text-green-800">
+                    {Math.round(totalDistance)} km
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <Clock className="h-4 w-4 mr-1.5 text-green-600" />
+                    <span>Travel time:</span>
+                  </div>
+                  <div className="font-medium text-green-800">
+                    ~{Math.round(totalTravelHours)} hours
+                  </div>
+                  
+                  {uniqueDestinations > 0 && (
+                    <>
+                      <div className="flex items-center">
+                        <Shield className="h-4 w-4 mr-1.5 text-green-600" />
+                        <span>Hotels needed:</span>
+                      </div>
+                      <div className="font-medium text-green-800">
+                        {uniqueDestinations} different locations
+                      </div>
+                    </>
+                  )}
+                  
+                  {travelPercentage > 0 && (
+                    <>
+                      <div className="flex items-center">
+                        <Timer className="h-4 w-4 mr-1.5 text-green-600" />
+                        <span>Travel percentage:</span>
+                      </div>
+                      <div className="font-medium text-green-800">
+                        {travelPercentage}% of your trip
+                      </div>
+                    </>
+                  )}
+                  
+                  <div className="flex items-center">
+                    <CheckCircle className="h-4 w-4 mr-1.5 text-green-600" />
+                    <span>Recommended:</span>
+                  </div>
+                  <div className="font-medium text-green-800 capitalize">
+                    {transportType}
+                  </div>
+                </div>
+                
+                {breakdown && breakdown.length > 1 && (
+                  <div className="mt-3">
+                    <div className="flex justify-between items-center text-xs text-green-700">
+                      <button 
+                        className="flex items-center font-medium hover:text-green-800 transition-colors"
+                        onClick={() => document.getElementById('distanceDetails')?.classList.toggle('hidden')}
+                      >
+                        <span>Distance Between Destinations</span>
+                        <ArrowRight className="h-3 w-3 ml-1" />
+                      </button>
+                      <span>Hide details</span>
+                    </div>
+                    
+                    <div id="distanceDetails" className="mt-2 space-y-2 text-xs">
+                      {breakdown.map((item, index) => {
+                        if (index < breakdown.length - 1) {
+                          const nextItem = breakdown[index + 1];
+                          if (item.destinationName !== nextItem.destinationName) {
+                            return (
+                              <div key={index} className="p-2 bg-green-50 rounded-sm flex justify-between">
+                                <div className="flex items-center">
+                                  <span>{item.destinationName} → {nextItem.destinationName}</span>
+                                </div>
+                                <div className="text-green-800">
+                                  {Math.round(item.travelHoursToNext * travelDetails?.speed || 60)} km
+                                  <span className="text-green-600 ml-1">
+                                    (~{Math.round(item.travelHoursToNext)}h)
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          }
+                        }
+                        return null;
+                      })}
+                    </div>
+                  </div>
+                )}
+                
+                {travelDetails && (
+                  <div className="mt-4 border-t border-green-100 pt-3">
+                    <div className="text-sm font-medium text-green-800 mb-2">Transport Details</div>
+                    <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-xs text-green-700">
+                      <div>Average Speed:</div>
+                      <div className="font-medium text-green-800">{travelDetails.speed} km/h</div>
+                      
+                      <div>Cost per km:</div>
+                      <div className="font-medium text-green-800">₹{travelDetails.costPerKm}</div>
+                      
+                      <div>Best for:</div>
+                      <div className="font-medium text-green-800">{travelDetails.bestFor}</div>
+                      
+                      <div>Overnight option:</div>
+                      <div className="font-medium text-green-800">
+                        {travelDetails.overnightOption ? "Available" : "Unavailable"}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
             )}
+            
             {isPremium && (
               <div className="mt-3 p-2 bg-purple-50 border border-purple-100 rounded text-purple-700 text-sm">
                 <span className="font-medium">Premium benefits:</span> Optimized routing and crowd avoidance will save you up to 15% in travel time.

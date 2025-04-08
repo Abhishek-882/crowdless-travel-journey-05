@@ -1,24 +1,37 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 import { useBookings } from '../context/BookingContext';
 import { useDestinations } from '../context/DestinationContext';
+import { useTripPlanning } from '../context/TripPlanningContext';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, MapPin, Users, Clock, Landmark } from 'lucide-react';
+import { Calendar, MapPin, Users, Clock, Landmark, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatPrice } from '../utils/helpers';
+import TripItinerary from '../components/TripItinerary';
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const MyBookings: React.FC = () => {
   const { currentUser } = useAuth();
   const { getUserBookings, getUserTripPlans, cancelBooking } = useBookings();
   const { getDestinationById } = useDestinations();
+  const { generateOptimalItinerary } = useTripPlanning();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string>("bookings");
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
 
   // Get bookings for the current user
   const userBookings = currentUser ? getUserBookings(currentUser.id) : [];
@@ -41,6 +54,20 @@ const MyBookings: React.FC = () => {
   };
 
   const hasNoBookings = userBookings.length === 0 && userTripPlans.length === 0;
+
+  // Find the currently selected trip
+  const selectedTrip = selectedTripId 
+    ? userTripPlans.find(trip => trip.id === selectedTripId)
+    : null;
+
+  // Generate itinerary for the selected trip
+  const tripItinerary = selectedTrip ? 
+    (selectedTrip.itinerary || generateOptimalItinerary({
+      destinationIds: selectedTrip.selectedDestinations,
+      transportType: selectedTrip.transportType || 'car',
+      numberOfDays: selectedTrip.numberOfDays,
+      startDate: new Date(selectedTrip.startDate)
+    })) : [];
 
   if (isLoading) {
     return (
@@ -229,7 +256,10 @@ const MyBookings: React.FC = () => {
                                     {trip.itinerary.slice(0, 2).map((day) => (
                                       <div key={day.day} className="flex">
                                         <span className="font-medium mr-2">Day {day.day}:</span>
-                                        <span>{day.destinationName} {day.isTransitDay ? "(Transit)" : ""}</span>
+                                        <span>{day.destinationName} {day.isTransitDay ? 
+                                          <Badge variant="outline" className="text-[10px] ml-1 py-0 px-1 h-4 bg-blue-50 text-blue-700 border-blue-200">
+                                            Transit
+                                          </Badge> : ""}</span>
                                       </div>
                                     ))}
                                     {trip.itinerary.length > 2 && (
@@ -242,11 +272,49 @@ const MyBookings: React.FC = () => {
                               )}
                             </CardContent>
                             
-                            <CardFooter className="pt-0 flex justify-between">
+                            <CardFooter className="pt-0 flex justify-between gap-2">
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button 
+                                    variant="default" 
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() => setSelectedTripId(trip.id)}
+                                  >
+                                    View Full Itinerary
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                                  <DialogHeader>
+                                    <DialogTitle>Your Complete Trip Itinerary</DialogTitle>
+                                    <DialogDescription>
+                                      {format(new Date(trip.startDate), 'PPP')} to {format(new Date(trip.endDate), 'PPP')}
+                                      <div className="flex items-center gap-2 mt-2">
+                                        <Badge variant="outline" className="bg-slate-50">
+                                          {trip.numberOfDays} days
+                                        </Badge>
+                                        <Badge variant="outline" className="bg-slate-50">
+                                          {trip.selectedDestinations.length} destinations
+                                        </Badge>
+                                        <Badge variant="outline" className="bg-slate-50 capitalize">
+                                          {trip.transportType || 'car'} travel
+                                        </Badge>
+                                      </div>
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="mt-4">
+                                    <TripItinerary 
+                                      itinerary={tripItinerary} 
+                                      transportType={trip.transportType || 'car'} 
+                                      isPremium={trip.isPremium} 
+                                    />
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
                               <Button 
                                 variant="outline" 
                                 size="sm"
-                                className="w-full"
+                                className="flex-1"
                                 onClick={() => navigate('/trip-planner')}
                               >
                                 Plan Another Trip

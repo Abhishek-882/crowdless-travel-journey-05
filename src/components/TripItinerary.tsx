@@ -15,7 +15,13 @@ import {
   Palmtree,
   Landmark,
   Coffee,
-  AlertCircle
+  AlertCircle,
+  Hotel,
+  Sunrise,
+  Sunset,
+  Utensils,
+  Camera,
+  Moon
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -52,35 +58,55 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
           speed: '45-50 km/h',
           travelTip: 'Consider overnight buses for long distances to save daylight hours',
           transitAlert: 'Bus travel can be tiring for journeys over 8 hours',
-          transitDayNeeded: 300 // km threshold for needing a transit day
+          transitDayNeeded: 300, // km threshold for needing a transit day
+          morningDeparture: '6:00 AM',
+          afternoonDeparture: '2:00 PM',
+          eveningDeparture: '9:00 PM',
+          breakStops: ['Short rest stops every 2-3 hours', 'Meal stop after 4-5 hours']
         };
       case 'train':
         return {
           speed: '60-80 km/h',
           travelTip: 'Book sleeper class for overnight journeys',
           transitAlert: 'Check for direct trains to avoid multiple connections',
-          transitDayNeeded: 400
+          transitDayNeeded: 400,
+          morningDeparture: '7:30 AM',
+          afternoonDeparture: '1:30 PM',
+          eveningDeparture: '8:00 PM',
+          breakStops: ['Food vendors available on train', 'Major stations have 5-10 minute stops']
         };
       case 'flight':
         return {
           speed: '500-800 km/h',
           travelTip: 'Allow 2-3 hours for airport procedures',
           transitAlert: 'Consider flight timing to maximize destination time',
-          transitDayNeeded: 1500
+          transitDayNeeded: 1500,
+          morningDeparture: '9:00 AM',
+          afternoonDeparture: '2:30 PM',
+          eveningDeparture: '7:00 PM',
+          breakStops: ['Airport arrival 2 hours before departure', 'Security and boarding procedures']
         };
       case 'car':
         return {
           speed: '50-60 km/h',
           travelTip: 'Plan for regular breaks every 2-3 hours',
           transitAlert: 'Long drives may require overnight stops',
-          transitDayNeeded: 250
+          transitDayNeeded: 250,
+          morningDeparture: '7:00 AM',
+          afternoonDeparture: '12:00 PM',
+          eveningDeparture: '4:00 PM',
+          breakStops: ['Rest stops every 2 hours', 'Meal breaks', 'Scenic viewpoints']
         };
       default:
         return {
           speed: '50-60 km/h',
           travelTip: 'Plan your journey in advance',
           transitAlert: 'Long travel may be tiring',
-          transitDayNeeded: 300
+          transitDayNeeded: 300,
+          morningDeparture: '8:00 AM',
+          afternoonDeparture: '1:00 PM',
+          eveningDeparture: '6:00 PM',
+          breakStops: ['Regular breaks recommended']
         };
     }
   };
@@ -113,14 +139,28 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
 
   // Get activity icon based on activity description
   const getActivityIcon = (activity: string) => {
-    if (activity.toLowerCase().includes('explore')) {
+    const lowerActivity = activity.toLowerCase();
+    
+    if (lowerActivity.includes('explore') || lowerActivity.includes('visit')) {
       return <Landmark className="h-4 w-4 mr-2 text-indigo-500" />;
-    } else if (activity.toLowerCase().includes('beach') || activity.toLowerCase().includes('ocean')) {
+    } else if (lowerActivity.includes('beach') || lowerActivity.includes('ocean')) {
       return <Palmtree className="h-4 w-4 mr-2 text-emerald-500" />;
-    } else if (activity.toLowerCase().includes('relax') || activity.toLowerCase().includes('rest')) {
+    } else if (lowerActivity.includes('relax') || lowerActivity.includes('rest')) {
       return <Coffee className="h-4 w-4 mr-2 text-amber-500" />;
-    } else if (activity.toLowerCase().includes('travel')) {
+    } else if (lowerActivity.includes('travel') || lowerActivity.includes('journey')) {
       return getTransportIcon();
+    } else if (lowerActivity.includes('check-in') || lowerActivity.includes('hotel')) {
+      return <Hotel className="h-4 w-4 mr-2 text-slate-500" />;
+    } else if (lowerActivity.includes('sunrise') || lowerActivity.includes('morning')) {
+      return <Sunrise className="h-4 w-4 mr-2 text-amber-500" />;
+    } else if (lowerActivity.includes('sunset') || lowerActivity.includes('evening')) {
+      return <Sunset className="h-4 w-4 mr-2 text-orange-500" />;
+    } else if (lowerActivity.includes('dinner') || lowerActivity.includes('lunch') || lowerActivity.includes('breakfast')) {
+      return <Utensils className="h-4 w-4 mr-2 text-red-500" />;
+    } else if (lowerActivity.includes('night') || lowerActivity.includes('evening')) {
+      return <Moon className="h-4 w-4 mr-2 text-indigo-400" />;
+    } else if (lowerActivity.includes('photo') || lowerActivity.includes('view')) {
+      return <Camera className="h-4 w-4 mr-2 text-blue-500" />;
     } else {
       return <Sun className="h-4 w-4 mr-2 text-amber-500" />;
     }
@@ -134,6 +174,113 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
     .map(day => day.destinationName);
   
   const hasGeographicalAnomaly = destinationSequence.length > 2 && hasLongDistanceTravel;
+
+  // Generate more detailed activities for each day
+  const enrichItinerary = (originalItinerary: TripItineraryDay[]): TripItineraryDay[] => {
+    return originalItinerary.map(day => {
+      const isFirstDayAtDestination = originalItinerary.findIndex(d => 
+        d.destinationName === day.destinationName) === originalItinerary.indexOf(day);
+      
+      const isLastDayAtDestination = originalItinerary.findLastIndex(d => 
+        d.destinationName === day.destinationName) === originalItinerary.indexOf(day);
+      
+      const isTransitDayToNext = day.isTransitDay;
+      
+      let enrichedActivities: string[] = [];
+      
+      if (isTransitDayToNext) {
+        const nextDay = originalItinerary[originalItinerary.indexOf(day) + 1];
+        const prevDay = originalItinerary[originalItinerary.indexOf(day) - 1];
+        const fromDestination = prevDay?.destinationName || 'your starting point';
+        const toDestination = nextDay?.destinationName || day.destinationName;
+        
+        // Early morning departure
+        if (day.activities && day.activities.length > 0) {
+          enrichedActivities = [day.activities[0]]; // Keep the original travel description
+          
+          // Add more transit details
+          enrichedActivities.push(`${transportInsights.morningDeparture} - Depart from ${fromDestination}`);
+          
+          // Add transportation-specific details  
+          if (transportType === 'car') {
+            enrichedActivities.push('Stops at scenic viewpoints along the route');
+          } else if (transportType === 'train') {
+            enrichedActivities.push('Enjoy the passing landscapes through the train window');
+          } else if (transportType === 'bus') {
+            enrichedActivities.push('Rest stops at major towns along the route');
+          } else if (transportType === 'flight') {
+            enrichedActivities.push('Airport procedures and security checks');
+            enrichedActivities.push('Flight to ' + toDestination);
+          }
+          
+          enrichedActivities.push(`Evening - Arrive at ${toDestination}`);
+          enrichedActivities.push('Check-in to accommodation and rest');
+        }
+      } else {
+        if (isFirstDayAtDestination) {
+          // First day at a new destination
+          enrichedActivities = [
+            `Morning - Begin exploring ${day.destinationName}`,
+            `Afternoon - Visit major attractions`,
+            `Evening - Explore local cuisine`,
+          ];
+        } else if (isLastDayAtDestination) {
+          // Last day at this destination
+          enrichedActivities = [
+            `Morning - Visit remaining must-see spots in ${day.destinationName}`,
+            `Afternoon - Shopping for souvenirs`,
+            `Evening - Final dinner in ${day.destinationName}`,
+          ];
+        } else {
+          // Middle day at a destination
+          enrichedActivities = [
+            `Morning - Sunrise views and early exploration`,
+            `Afternoon - Off-the-beaten-path experiences`,
+            `Evening - Enjoy local entertainment`,
+          ];
+        }
+        
+        // Add specific activities based on destination type
+        if (day.destinationName.toLowerCase().includes('beach') || 
+            day.destinationName.toLowerCase().includes('goa')) {
+          enrichedActivities = [
+            'Morning - Beach walk and breakfast by the sea',
+            'Afternoon - Water activities and sunbathing',
+            'Evening - Sunset views and seafood dinner',
+          ];
+        } else if (day.destinationName.toLowerCase().includes('temple') || 
+                   day.destinationName.toLowerCase().includes('amritsar')) {
+          enrichedActivities = [
+            'Morning - Visit the Golden Temple during peaceful hours',
+            'Afternoon - Explore the surrounding historic sites',
+            'Evening - Attend the evening ceremony',
+          ];
+        } else if (day.destinationName.toLowerCase().includes('palace') || 
+                   day.destinationName.toLowerCase().includes('jaipur')) {
+          enrichedActivities = [
+            'Morning - Visit the City Palace and nearby attractions',
+            'Afternoon - Explore local markets and handicraft shops',
+            'Evening - Light and sound show at a historic venue',
+          ];
+        } else if (day.destinationName.toLowerCase().includes('taj') || 
+                   day.destinationName.toLowerCase().includes('agra')) {
+          enrichedActivities = [
+            'Early morning - Taj Mahal at sunrise (best lighting)',
+            'Afternoon - Agra Fort and other historical sites',
+            'Evening - Mehtab Bagh gardens for sunset views of Taj Mahal',
+          ];
+        }
+      }
+      
+      return {
+        ...day,
+        activities: enrichedActivities
+      };
+    });
+  };
+
+  // Enrich the itinerary with more detailed activities
+  const detailedItinerary = enrichItinerary(itinerary);
 
   return (
     <div className="space-y-6">
@@ -198,15 +345,25 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
       </Card>
       
       <div className="relative pl-8 before:absolute before:left-3.5 before:top-0 before:h-full before:w-0.5 before:bg-slate-200">
-        {itinerary.map((day, index) => {
-          const isLastDestinationInTrip = index === itinerary.length - 1;
-          const nextDay = !isLastDestinationInTrip ? itinerary[index + 1] : null;
+        {detailedItinerary.map((day, index) => {
+          const isLastDestinationInTrip = index === detailedItinerary.length - 1;
+          const nextDay = !isLastDestinationInTrip ? detailedItinerary[index + 1] : null;
           const showDistanceToNext = !isLastDestinationInTrip && nextDay && 
             day.destinationName !== nextDay.destinationName;
           
           // Determine if this is a new destination
           const isNewDestination = index === 0 || 
-            day.destinationName !== itinerary[index - 1].destinationName;
+            day.destinationName !== detailedItinerary[index - 1].destinationName;
+            
+          // Determine if this is first/last day at destination
+          const isFirstDayAtDestination = detailedItinerary.findIndex(d => 
+            d.destinationName === day.destinationName) === index;
+          const isLastDayAtDestination = detailedItinerary.findLastIndex(d => 
+            d.destinationName === day.destinationName) === index;
+
+          // Determine time spent at this destination
+          const daysAtThisDestination = detailedItinerary.filter(d => 
+            d.destinationName === day.destinationName && !d.isTransitDay).length;
 
           return (
             <div key={index} className="mb-6 relative">
@@ -239,6 +396,21 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
                             New Destination
                           </Badge>
                         )}
+                        {day.isTransitDay && (
+                          <Badge variant="outline" className="ml-2 border-blue-200 bg-blue-50 text-blue-700">
+                            Travel Day
+                          </Badge>
+                        )}
+                        {!day.isTransitDay && isFirstDayAtDestination && daysAtThisDestination > 1 && (
+                          <Badge variant="outline" className="ml-2 border-green-200 bg-green-50 text-green-700">
+                            Arrival Day
+                          </Badge>
+                        )}
+                        {!day.isTransitDay && isLastDayAtDestination && daysAtThisDestination > 1 && !isFirstDayAtDestination && (
+                          <Badge variant="outline" className="ml-2 border-amber-200 bg-amber-50 text-amber-700">
+                            Departure Day
+                          </Badge>
+                        )}
                       </h4>
                       
                       <div className="flex items-center text-sm text-slate-500">
@@ -247,9 +419,32 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
                       </div>
                       
                       {day.isTransitDay ? (
-                        <Badge variant="secondary" className="mt-1 border border-blue-200 bg-blue-100/60 text-blue-700">
-                          Transit Day ({transportType})
-                        </Badge>
+                        <div className="mt-2">
+                          <Badge variant="secondary" className="mb-3 border border-blue-200 bg-blue-100/60 text-blue-700">
+                            Transit Day via {transportType}
+                          </Badge>
+                          
+                          <ul className="mt-2 text-sm space-y-2.5">
+                            {day.activities && day.activities.map((activity, i) => (
+                              <li key={i} className="flex items-start bg-slate-50/80 p-2 rounded-sm">
+                                {i === 0 ? getTransportIcon() : getActivityIcon(activity)}
+                                <span className="text-slate-700">{activity}</span>
+                              </li>
+                            ))}
+                          </ul>
+                          
+                          <div className="mt-3 p-2 bg-blue-50/50 rounded-sm border border-blue-100 text-sm">
+                            <div className="font-medium text-blue-700 mb-1">{transportType} Details:</div>
+                            <ul className="space-y-1 text-xs text-blue-700">
+                              {transportInsights.breakStops.map((stop, i) => (
+                                <li key={i} className="flex items-center">
+                                  <span className="bg-blue-100 rounded-full w-1.5 h-1.5 mr-1.5"></span>
+                                  {stop}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
                       ) : (
                         <ul className="mt-2 text-sm space-y-2.5">
                           {day.activities && day.activities.map((activity, i) => (
@@ -263,16 +458,20 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
                       
                       {showDistanceToNext && (
                         <div className="flex items-center mt-3 pt-2 border-t border-dashed border-slate-200">
-                          <div className="flex items-center gap-1 text-xs text-slate-500">
-                            <ArrowRight className="h-3 w-3" />
-                            <span>Next: {nextDay?.destinationName}</span>
+                          <div className="flex items-center gap-1 text-xs text-slate-500 w-full">
+                            <div className="flex items-center">
+                              <ArrowRight className="h-3 w-3 mr-1" />
+                              <span>Next: {nextDay?.destinationName}</span>
+                            </div>
                             
-                            {/* Show transport-specific travel time estimate */}
-                            <span className="ml-1 text-slate-400">
-                              (Approx. {transportType === 'flight' ? '2-3h' : 
-                                        transportType === 'train' ? '16-20h' : 
-                                        transportType === 'bus' ? '24-30h' : '20-25h'} by {transportType})
-                            </span>
+                            <div className="ml-auto flex items-center gap-1.5">
+                              {getTransportIcon()}
+                              <span className="text-slate-600 font-medium">
+                                {transportType === 'flight' ? '2-3h flight' : 
+                                transportType === 'train' ? '~8h by train' : 
+                                transportType === 'bus' ? '~10h by bus' : '~9h drive'}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       )}
