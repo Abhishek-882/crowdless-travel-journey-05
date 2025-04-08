@@ -2,10 +2,12 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertTriangle, Clock, CalendarDays, MapPin, Info, Check, ArrowRight } from 'lucide-react';
+import { AlertTriangle, Clock, CalendarDays, MapPin, Info, Check, ArrowRight, Timer } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { calculateTravelDetails } from '../utils/travelCalculator';
 
 interface TripBreakdownItem {
   destinationId: string;
@@ -33,7 +35,7 @@ const TripValidation: React.FC<TripValidationProps> = ({
   daysNeeded, 
   daysShort, 
   breakdown,
-  transportType,
+  transportType = 'car',
   totalDistance,
   totalTravelHours,
   onAdjustDays, 
@@ -41,6 +43,14 @@ const TripValidation: React.FC<TripValidationProps> = ({
   isPremium
 }) => {
   const navigate = useNavigate();
+  
+  // Get travel details based on transport type
+  const travelDetails = transportType ? calculateTravelDetails(totalDistance || 0, transportType) : null;
+
+  // Calculate percentage of trip spent traveling
+  const travelPercentage = daysNeeded && totalTravelHours 
+    ? Math.round((totalTravelHours / (daysNeeded * 24)) * 100) 
+    : 0;
 
   if (feasible) {
     return (
@@ -48,8 +58,32 @@ const TripValidation: React.FC<TripValidationProps> = ({
         <Check className="h-5 w-5 text-green-600" />
         <AlertTitle className="text-green-700 text-lg font-medium">Trip plan looks great!</AlertTitle>
         <AlertDescription className="text-green-600">
-          Your destinations can be comfortably visited within your selected timeframe using {transportType} transport.
-          {isPremium && " As a premium member, you'll get optimized routing and crowd avoidance."}
+          <div className="mt-2">
+            <p>Your destinations can be comfortably visited within your selected timeframe using {transportType} transport.</p>
+            {totalDistance && totalTravelHours && (
+              <div className="flex flex-wrap gap-x-6 gap-y-2 mt-3 text-sm">
+                <div className="flex items-center">
+                  <MapPin className="h-4 w-4 mr-1.5" />
+                  <span>Total distance: <strong>{Math.round(totalDistance)} km</strong></span>
+                </div>
+                <div className="flex items-center">
+                  <Clock className="h-4 w-4 mr-1.5" />
+                  <span>Total travel: <strong>{Math.round(totalTravelHours)} hours</strong></span>
+                </div>
+                {travelPercentage > 0 && (
+                  <div className="flex items-center">
+                    <Timer className="h-4 w-4 mr-1.5" />
+                    <span>Travel time: <strong>{travelPercentage}% of your trip</strong></span>
+                  </div>
+                )}
+              </div>
+            )}
+            {isPremium && (
+              <div className="mt-3 p-2 bg-purple-50 border border-purple-100 rounded text-purple-700 text-sm">
+                <span className="font-medium">Premium benefits:</span> Optimized routing and crowd avoidance will save you up to 15% in travel time.
+              </div>
+            )}
+          </div>
         </AlertDescription>
       </Alert>
     );
@@ -81,6 +115,18 @@ const TripValidation: React.FC<TripValidationProps> = ({
               <div className="space-y-2">
                 {breakdown.map((item, index) => {
                   const isLastItem = index === breakdown.length - 1;
+                  
+                  // Get transport-specific styling
+                  const getTransportColor = () => {
+                    switch(transportType) {
+                      case 'bus': return 'text-blue-700 bg-blue-50 border-blue-200';
+                      case 'train': return 'text-purple-700 bg-purple-50 border-purple-200';
+                      case 'flight': return 'text-sky-700 bg-sky-50 border-sky-200';
+                      case 'car': return 'text-green-700 bg-green-50 border-green-200';
+                      default: return 'text-amber-700 bg-amber-50 border-amber-200';
+                    }
+                  };
+                  
                   return (
                     <div key={index} className="relative">
                       <div className="flex items-center justify-between bg-amber-50/70 p-2.5 rounded-md border border-amber-100">
@@ -98,15 +144,18 @@ const TripValidation: React.FC<TripValidationProps> = ({
                       </div>
                       
                       {!isLastItem && item.travelHoursToNext > 0 && (
-                        <div className="flex items-center justify-center my-2 text-xs text-amber-600">
+                        <div className="flex items-center justify-center my-2 text-xs">
                           <div className="flex flex-col items-center">
                             <ArrowRight className="h-4 w-4 mb-1" />
-                            <div className="flex gap-1 items-center">
+                            <div className={`flex gap-1 items-center px-2 py-1 rounded ${getTransportColor()}`}>
                               <Clock className="h-3 w-3" />
-                              <span>{Math.round(item.travelHoursToNext * 10) / 10}h travel ({transportType})</span>
+                              <span>{Math.round(item.travelHoursToNext * 10) / 10}h by {transportType}</span>
                             </div>
                             {item.travelDaysToNext > 0 && (
-                              <Badge variant="outline" className="mt-1 bg-amber-50 text-amber-700 border-amber-200 text-[10px]">
+                              <Badge 
+                                variant="outline" 
+                                className={`mt-1 text-[10px] ${getTransportColor()}`}
+                              >
                                 {item.travelDaysToNext} day{item.travelDaysToNext > 1 ? 's' : ''} travel
                               </Badge>
                             )}
@@ -118,21 +167,42 @@ const TripValidation: React.FC<TripValidationProps> = ({
                 })}
               </div>
               
-              {totalDistance && totalTravelHours && transportType && (
-                <div className="mt-4 p-3 bg-amber-50/80 rounded-md border border-amber-100 text-amber-800 text-sm">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="flex items-center gap-1.5">
-                      <MapPin className="h-3.5 w-3.5" />
-                      <span>Total distance:</span>
-                    </span> 
-                    <span className="font-medium">{Math.round(totalDistance)} km</span>
+              {totalDistance && totalTravelHours && transportType && travelDetails && (
+                <div className="mt-4">
+                  <div className="p-3 bg-amber-50/80 rounded-md border border-amber-100 text-amber-800 text-sm mb-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="flex items-center gap-1.5">
+                        <MapPin className="h-3.5 w-3.5" />
+                        <span>Total distance:</span>
+                      </span> 
+                      <span className="font-medium">{Math.round(totalDistance)} km</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5" />
+                        <span>Travel time:</span>
+                      </span> 
+                      <span className="font-medium">{Math.round(totalTravelHours * 10) / 10} hours by {transportType}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <Clock className="h-3.5 w-3.5" />
-                      <span>Travel time:</span>
-                    </span> 
-                    <span className="font-medium">{Math.round(totalTravelHours * 10) / 10} hours by {transportType}</span>
+                  
+                  {/* Transport-specific insights */}
+                  <div className={`p-3 rounded-md text-sm grid grid-cols-2 gap-2 
+                    ${transportType === 'bus' ? 'bg-blue-50/80 border border-blue-100 text-blue-800' : 
+                     transportType === 'train' ? 'bg-purple-50/80 border border-purple-100 text-purple-800' : 
+                     transportType === 'flight' ? 'bg-sky-50/80 border border-sky-100 text-sky-800' : 
+                     'bg-green-50/80 border border-green-100 text-green-800'}`}>
+                    <div className="col-span-2 font-medium mb-1">Transport Details</div>
+                    <div>Average Speed:</div>
+                    <div className="font-medium text-right">{travelDetails.speed} km/h</div>
+                    <div>Cost per km:</div>
+                    <div className="font-medium text-right">₹{travelDetails.costPerKm}</div>
+                    <div>Overnight option:</div>
+                    <div className="font-medium text-right">{travelDetails.overnightOption ? "Available" : "Unavailable"}</div>
+                    <Separator className="col-span-2 my-1" />
+                    <div className="col-span-2">
+                      <span className="font-medium">Best for:</span> {travelDetails.bestFor}
+                    </div>
                   </div>
                 </div>
               )}
