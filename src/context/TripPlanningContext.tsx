@@ -230,15 +230,20 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
       const newTripPlanId = `trip_${uuidv4()}`;
 
+      const transportType = tripPlanData.transportType || 
+        (tripPlanData.selectedTransport ? 
+          transports.find(t => t.id === tripPlanData.selectedTransport)?.type || 'car' : 'car');
+
       const newTripPlan: TripPlan = {
         ...tripPlanData,
         id: newTripPlanId,
         createdAt: new Date().toISOString(),
+        transportType: transportType as 'bus' | 'train' | 'flight' | 'car',
       };
 
       setTripPlans((prev) => [...prev, newTripPlan]);
 
-      await saveBookingTripPlan(tripPlanData);
+      await saveBookingTripPlan(newTripPlan);
       
       toast({
         title: 'Trip Plan Saved!',
@@ -418,17 +423,81 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
       'car': 50
     };
     
+    let baseHotel = null;
+    if (selectedDestinations.length > 1 && options.numberOfDays >= selectedDestinations.length) {
+      let minTotalDistance = Infinity;
+      let centralDestIndex = 0;
+      
+      for (let i = 0; i < selectedDestinations.length; i++) {
+        let totalDist = 0;
+        for (let j = 0; j < selectedDestinations.length; j++) {
+          if (i !== j) {
+            totalDist += calculateDistanceBetweenDestinations(
+              selectedDestinations[i], 
+              selectedDestinations[j]
+            );
+          }
+        }
+        if (totalDist < minTotalDistance) {
+          minTotalDistance = totalDist;
+          centralDestIndex = i;
+        }
+      }
+      
+      baseHotel = selectedDestinations[centralDestIndex].name;
+    }
+    
+    const needsOvernightTransport = selectedDestinations.some((dest, i) => {
+      if (i < selectedDestinations.length - 1) {
+        const nextDest = selectedDestinations[i + 1];
+        const distanceKm = calculateDistanceBetweenDestinations(dest, nextDest);
+        return distanceKm > 500;
+      }
+      return false;
+    });
+    
     for (let day = 1; day <= (options.numberOfDays || 1); day++) {
       if (currentDestIndex < selectedDestinations.length) {
         const destination = selectedDestinations[currentDestIndex];
+        
+        let activities = [`Explore ${destination.name}`];
+        if (destination.attractions && destination.attractions.length) {
+          activities = destination.attractions.slice(0, 2).map(att => `Visit ${att}`);
+        }
+        
+        if (destination.name.toLowerCase().includes("beach")) {
+          activities.push("Relax on the beach");
+          activities.push("Try water sports");
+        } else if (destination.name.toLowerCase().includes("temple")) {
+          activities.push("Learn about the temple history");
+          activities.push("Photography session");
+        } else if (destination.name.toLowerCase().includes("palace")) {
+          activities.push("Guided tour of the palace");
+          activities.push("Visit the royal gardens");
+        }
+        
+        let departureTime = null;
+        let arrivalTime = null;
+        
+        if (day > 1) {
+          arrivalTime = '10:00 AM';
+        }
+        
+        if (currentDestIndex < selectedDestinations.length - 1) {
+          if (needsOvernightTransport) {
+            departureTime = '8:00 PM';
+          }
+        }
         
         itinerary.push({
           day,
           date: new Date(currentDate),
           destinationId: destination.id,
           destinationName: destination.name,
-          activities: [`Explore ${destination.name}`],
-          isTransitDay: false
+          activities: activities,
+          isTransitDay: false,
+          departureTime,
+          arrivalTime
         });
         
         if (currentDestIndex < selectedDestinations.length - 1) {
@@ -441,13 +510,31 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
             day++;
             
             if (day <= (options.numberOfDays || 1)) {
+              const transportDetails = {
+                vehicle: options.transportType,
+                duration: `${Math.round(travelHours)} hours`,
+                amenities: options.transportType === 'train' ? ['Comfortable seats', 'Onboard meals'] : 
+                          options.transportType === 'flight' ? ['Express travel', 'Inflight service'] :
+                          options.transportType === 'bus' ? ['Reclining seats', 'Rest stops'] :
+                          ['Flexibility', 'Privacy']
+              };
+              
+              const freshUpStops = needsOvernightTransport ? [
+                { time: '11:00 PM', location: 'Rest stop' },
+                { time: '6:00 AM', location: 'Breakfast stop' }
+              ] : undefined;
+              
               itinerary.push({
                 day,
                 date: new Date(currentDate),
                 destinationId: nextDest.id,
                 destinationName: nextDest.name,
                 activities: [`Travel from ${destination.name} to ${nextDest.name} (${Math.round(distanceKm)} km, ~${Math.round(travelHours)} hours)`],
-                isTransitDay: true
+                isTransitDay: true,
+                departureTime: '8:00 AM',
+                arrivalTime: `${Math.round(travelHours + 8)}:00`,
+                transportDetails,
+                freshUpStops
               });
             }
           }
@@ -458,12 +545,18 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
             currentDate.setDate(currentDate.getDate() + 1);
             day++;
             
+            const extendedActivities = [
+              `More time to explore ${destination.name}`,
+              'Local cuisine tasting',
+              'Shopping for souvenirs'
+            ];
+            
             itinerary.push({
               day,
               date: new Date(currentDate),
               destinationId: destination.id,
               destinationName: destination.name,
-              activities: [`More time to explore ${destination.name}`],
+              activities: extendedActivities,
               isTransitDay: false
             });
           }

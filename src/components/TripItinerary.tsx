@@ -1,32 +1,11 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { 
-  CalendarIcon, 
-  MapPin, 
-  Clock, 
-  Car, 
-  Bus, 
-  Train, 
-  Plane, 
-  AlertTriangle, 
-  ArrowRight,
-  Sun,
-  Palmtree,
-  Landmark,
-  Coffee,
-  AlertCircle,
-  Hotel,
-  Sunrise,
-  Sunset,
-  Utensils,
-  Camera,
-  Moon
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Bus, Train, Plane, Car, ArrowRight, Info, MapPin, Hotel, Clock, AlertTriangle, Coffee } from 'lucide-react';
 import { TripItineraryDay } from '../types';
-import { calculateTravelDetails } from '../utils/travelCalculator';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { findLastIndex } from '../utils/arrayUtils';
 
 interface TripItineraryProps {
   itinerary: TripItineraryDay[];
@@ -36,556 +15,474 @@ interface TripItineraryProps {
 
 const TripItinerary: React.FC<TripItineraryProps> = ({ 
   itinerary, 
-  transportType,
-  isPremium
+  transportType = 'car',
+  isPremium = false
 }) => {
-  if (!itinerary || !itinerary.length) {
+  const [expandedDays, setExpandedDays] = useState<Record<number, boolean>>({});
+
+  // Calculate travel details based on the transport type
+  const calculateTravelDetails = (type: string) => {
+    switch(type) {
+      case 'bus':
+        return {
+          speed: '50 km/h',
+          cost: '₹1.5/km',
+          advantages: ['Economical', 'Multiple stops', 'No parking needed'],
+          overnight: 'Sleeper available for long routes',
+          icon: <Bus className="h-5 w-5" />
+        };
+      case 'train':
+        return {
+          speed: '80 km/h',
+          cost: '₹2/km',
+          advantages: ['Comfortable', 'Scenic views', 'No traffic'],
+          overnight: 'Sleeper/AC options available',
+          icon: <Train className="h-5 w-5" />
+        };
+      case 'flight':
+        return {
+          speed: '500 km/h',
+          cost: '₹8/km',
+          advantages: ['Fastest option', 'Best for long distances', 'Time-saving'],
+          overnight: 'Red-eye flights available',
+          icon: <Plane className="h-5 w-5" />
+        };
+      case 'car':
+        return {
+          speed: '60 km/h',
+          cost: '₹3/km',
+          advantages: ['Flexible schedule', 'Door-to-door convenience', 'Privacy'],
+          overnight: 'Not recommended, find hotels',
+          icon: <Car className="h-5 w-5" />
+        };
+      default:
+        return {
+          speed: '60 km/h',
+          cost: '₹3/km',
+          advantages: ['Flexible schedule', 'Door-to-door convenience', 'Privacy'],
+          overnight: 'Not recommended, find hotels',
+          icon: <Car className="h-5 w-5" />
+        };
+    }
+  };
+
+  const travelDetails = calculateTravelDetails(transportType);
+
+  // Toggle day details expansion
+  const toggleDayExpansion = (day: number) => {
+    setExpandedDays(prev => ({
+      ...prev,
+      [day]: !prev[day]
+    }));
+  };
+
+  // Check if we have any transit days
+  const hasTransitDays = itinerary.some(day => day.isTransitDay);
+
+  // Find the last day for each destination to know when we're leaving
+  const getLastDayAtDestination = (destId: string, currentDay: number) => {
+    const nextDifferentDestIndex = itinerary.findIndex((day, index) => 
+      index > currentDay - 1 && day.destinationId !== destId
+    );
+    
+    return nextDifferentDestIndex !== -1 ? nextDifferentDestIndex : itinerary.length;
+  };
+
+  // Generate specialized activities for each destination
+  const getSpecializedActivities = (destName: string, day: number, isLastDay: boolean) => {
+    const activities = [];
+    const destLower = destName.toLowerCase();
+    
+    // Morning activities
+    if (destLower.includes('beach')) {
+      activities.push(day === 1 ? '8:00 AM: Sunrise beach walk' : '9:00 AM: Beach yoga session');
+    } else if (destLower.includes('palace') || destLower.includes('fort')) {
+      activities.push(day === 1 ? '9:00 AM: Palace guided tour' : '8:30 AM: Photography at the royal courtyards');
+    } else if (destLower.includes('temple')) {
+      activities.push(day === 1 ? '7:00 AM: Morning prayer ceremony' : '8:00 AM: Meditation session');
+    } else {
+      activities.push(day === 1 ? '8:30 AM: Start exploring the city' : '9:00 AM: Visit local markets');
+    }
+    
+    // Afternoon activities
+    if (destLower.includes('beach')) {
+      activities.push('1:00 PM: Beach volleyball & water sports');
+    } else if (destLower.includes('palace') || destLower.includes('fort')) {
+      activities.push('2:00 PM: Royal museum tour');
+    } else if (destLower.includes('temple')) {
+      activities.push('1:30 PM: Visit nearby shrines');
+    } else {
+      activities.push('1:00 PM: Lunch at local restaurant');
+    }
+    
+    // Evening activities
+    if (isLastDay) {
+      activities.push('6:00 PM: Pack and prepare for tomorrow\'s departure');
+    } else {
+      if (destLower.includes('beach')) {
+        activities.push('6:00 PM: Sunset beach dinner');
+      } else if (destLower.includes('palace') || destLower.includes('fort')) {
+        activities.push('7:00 PM: Light & sound show');
+      } else if (destLower.includes('temple')) {
+        activities.push('6:30 PM: Evening aarti ceremony');
+      } else {
+        activities.push('7:00 PM: Explore nightlife');
+      }
+    }
+    
+    return activities;
+  };
+
+  // Get the next destination for transition information
+  const getNextDestination = (currentIndex: number) => {
+    for (let i = currentIndex + 1; i < itinerary.length; i++) {
+      if (itinerary[i].destinationId !== itinerary[currentIndex].destinationId) {
+        return itinerary[i];
+      }
+    }
+    return null;
+  };
+
+  if (!itinerary || itinerary.length === 0) {
     return (
-      <div className="text-center p-6 bg-gray-50 rounded-lg">
-        <div className="text-gray-500">Itinerary will be generated once you've selected destinations and dates.</div>
+      <div className="text-center py-8">
+        <p className="text-gray-500">No itinerary available for this trip.</p>
       </div>
     );
   }
 
-  // Get transport details for the current selection
-  const transportDetails = calculateTravelDetails(0, transportType);
-
-  // Calculate transport-specific insights
-  const getTransportSpecificInsights = () => {
-    switch(transportType) {
-      case 'bus':
-        return {
-          speed: '45-50 km/h',
-          travelTip: 'Consider overnight buses for long distances to save daylight hours',
-          transitAlert: 'Bus travel can be tiring for journeys over 8 hours',
-          transitDayNeeded: 300, // km threshold for needing a transit day
-          morningDeparture: '6:00 AM',
-          afternoonDeparture: '2:00 PM',
-          eveningDeparture: '9:00 PM',
-          breakStops: ['Short rest stops every 2-3 hours', 'Meal stop after 4-5 hours']
-        };
-      case 'train':
-        return {
-          speed: '60-80 km/h',
-          travelTip: 'Book sleeper class for overnight journeys',
-          transitAlert: 'Check for direct trains to avoid multiple connections',
-          transitDayNeeded: 400,
-          morningDeparture: '7:30 AM',
-          afternoonDeparture: '1:30 PM',
-          eveningDeparture: '8:00 PM',
-          breakStops: ['Food vendors available on train', 'Major stations have 5-10 minute stops']
-        };
-      case 'flight':
-        return {
-          speed: '500-800 km/h',
-          travelTip: 'Allow 2-3 hours for airport procedures',
-          transitAlert: 'Consider flight timing to maximize destination time',
-          transitDayNeeded: 1500,
-          morningDeparture: '9:00 AM',
-          afternoonDeparture: '2:30 PM',
-          eveningDeparture: '7:00 PM',
-          breakStops: ['Airport arrival 2 hours before departure', 'Security and boarding procedures']
-        };
-      case 'car':
-        return {
-          speed: '50-60 km/h',
-          travelTip: 'Plan for regular breaks every 2-3 hours',
-          transitAlert: 'Long drives may require overnight stops',
-          transitDayNeeded: 250,
-          morningDeparture: '7:00 AM',
-          afternoonDeparture: '12:00 PM',
-          eveningDeparture: '4:00 PM',
-          breakStops: ['Rest stops every 2 hours', 'Meal breaks', 'Scenic viewpoints']
-        };
-      default:
-        return {
-          speed: '50-60 km/h',
-          travelTip: 'Plan your journey in advance',
-          transitAlert: 'Long travel may be tiring',
-          transitDayNeeded: 300,
-          morningDeparture: '8:00 AM',
-          afternoonDeparture: '1:00 PM',
-          eveningDeparture: '6:00 PM',
-          breakStops: ['Regular breaks recommended']
-        };
-    }
-  };
-
-  const transportInsights = getTransportSpecificInsights();
-
-  // Check for potential travel issues based on transport type
-  const hasLongDistanceTravel = itinerary.some(day => 
-    day.isTransitDay && day.activities && 
-    day.activities.some(activity => {
-      const kmMatch = activity.match(/(\d+)\s*km/);
-      if (kmMatch) {
-        const distance = parseInt(kmMatch[1], 10);
-        return distance > transportInsights.transitDayNeeded;
-      }
-      return false;
-    })
-  );
-
-  // Get transport icon based on current selection
-  const getTransportIcon = () => {
-    switch(transportType) {
-      case 'bus': return <Bus className="h-4 w-4 mr-2 text-blue-500" />;
-      case 'train': return <Train className="h-4 w-4 mr-2 text-purple-500" />;
-      case 'flight': return <Plane className="h-4 w-4 mr-2 text-sky-500" />;
-      case 'car': return <Car className="h-4 w-4 mr-2 text-green-500" />;
-      default: return <Car className="h-4 w-4 mr-2 text-green-500" />;
-    }
-  };
-
-  // Get activity icon based on activity description
-  const getActivityIcon = (activity: string) => {
-    const lowerActivity = activity.toLowerCase();
+  // Calculate destination clusters (consecutive days at the same place)
+  const getDestinationClusters = () => {
+    const clusters: {destinationId: string, startDay: number, endDay: number}[] = [];
+    let currentCluster = {
+      destinationId: itinerary[0].destinationId,
+      startDay: itinerary[0].day,
+      endDay: itinerary[0].day
+    };
     
-    if (lowerActivity.includes('explore') || lowerActivity.includes('visit')) {
-      return <Landmark className="h-4 w-4 mr-2 text-indigo-500" />;
-    } else if (lowerActivity.includes('beach') || lowerActivity.includes('ocean')) {
-      return <Palmtree className="h-4 w-4 mr-2 text-emerald-500" />;
-    } else if (lowerActivity.includes('relax') || lowerActivity.includes('rest')) {
-      return <Coffee className="h-4 w-4 mr-2 text-amber-500" />;
-    } else if (lowerActivity.includes('travel') || lowerActivity.includes('journey')) {
-      return getTransportIcon();
-    } else if (lowerActivity.includes('check-in') || lowerActivity.includes('hotel')) {
-      return <Hotel className="h-4 w-4 mr-2 text-slate-500" />;
-    } else if (lowerActivity.includes('sunrise') || lowerActivity.includes('morning')) {
-      return <Sunrise className="h-4 w-4 mr-2 text-amber-500" />;
-    } else if (lowerActivity.includes('sunset') || lowerActivity.includes('evening')) {
-      return <Sunset className="h-4 w-4 mr-2 text-orange-500" />;
-    } else if (lowerActivity.includes('dinner') || lowerActivity.includes('lunch') || lowerActivity.includes('breakfast')) {
-      return <Utensils className="h-4 w-4 mr-2 text-red-500" />;
-    } else if (lowerActivity.includes('night') || lowerActivity.includes('evening')) {
-      return <Moon className="h-4 w-4 mr-2 text-indigo-400" />;
-    } else if (lowerActivity.includes('photo') || lowerActivity.includes('view')) {
-      return <Camera className="h-4 w-4 mr-2 text-blue-500" />;
-    } else {
-      return <Sun className="h-4 w-4 mr-2 text-amber-500" />;
-    }
-  };
-
-  // Calculate if there are geographical anomalies in the plan
-  const destinationSequence = itinerary
-    .filter((day, index, arr) => 
-      index === 0 || day.destinationName !== arr[index-1].destinationName
-    )
-    .map(day => day.destinationName);
-  
-  const hasGeographicalAnomaly = destinationSequence.length > 2 && hasLongDistanceTravel;
-
-  // Generate more detailed activities for each day
-  const enrichItinerary = (originalItinerary: TripItineraryDay[]): TripItineraryDay[] => {
-    return originalItinerary.map(day => {
-      const isFirstDayAtDestination = originalItinerary.findIndex(d => 
-        d.destinationName === day.destinationName) === originalItinerary.indexOf(day);
-      
-      const isLastDayAtDestination = originalItinerary.findLastIndex(d => 
-        d.destinationName === day.destinationName) === originalItinerary.indexOf(day);
-      
-      const isTransitDayToNext = day.isTransitDay;
-      
-      let enrichedActivities: string[] = [];
-      
-      if (isTransitDayToNext) {
-        const nextDay = originalItinerary[originalItinerary.indexOf(day) + 1];
-        const prevDay = originalItinerary[originalItinerary.indexOf(day) - 1];
-        const fromDestination = prevDay?.destinationName || 'your starting point';
-        const toDestination = nextDay?.destinationName || day.destinationName;
-        
-        // Early morning departure
-        if (day.activities && day.activities.length > 0) {
-          enrichedActivities = [day.activities[0]]; // Keep the original travel description
-          
-          // Add more transit details
-          enrichedActivities.push(`${transportInsights.morningDeparture} - Depart from ${fromDestination}`);
-          
-          // Add transportation-specific details  
-          if (transportType === 'car') {
-            enrichedActivities.push('Stops at scenic viewpoints along the route');
-          } else if (transportType === 'train') {
-            enrichedActivities.push('Enjoy the passing landscapes through the train window');
-          } else if (transportType === 'bus') {
-            enrichedActivities.push('Rest stops at major towns along the route');
-          } else if (transportType === 'flight') {
-            enrichedActivities.push('Airport procedures and security checks');
-            enrichedActivities.push('Flight to ' + toDestination);
-          }
-          
-          enrichedActivities.push(`Evening - Arrive at ${toDestination}`);
-          enrichedActivities.push('Check-in to accommodation and rest');
-        }
+    for (let i = 1; i < itinerary.length; i++) {
+      const day = itinerary[i];
+      if (day.destinationId === currentCluster.destinationId && !day.isTransitDay) {
+        currentCluster.endDay = day.day;
       } else {
-        if (isFirstDayAtDestination) {
-          // First day at a new destination
-          enrichedActivities = [
-            `Morning - Begin exploring ${day.destinationName}`,
-            `Afternoon - Visit major attractions`,
-            `Evening - Explore local cuisine`,
-          ];
-        } else if (isLastDayAtDestination) {
-          // Last day at this destination
-          enrichedActivities = [
-            `Morning - Visit remaining must-see spots in ${day.destinationName}`,
-            `Afternoon - Shopping for souvenirs`,
-            `Evening - Final dinner in ${day.destinationName}`,
-          ];
-        } else {
-          // Middle day at a destination
-          enrichedActivities = [
-            `Morning - Sunrise views and early exploration`,
-            `Afternoon - Off-the-beaten-path experiences`,
-            `Evening - Enjoy local entertainment`,
-          ];
-        }
-        
-        // Add specific activities based on destination type
-        if (day.destinationName.toLowerCase().includes('beach') || 
-            day.destinationName.toLowerCase().includes('goa')) {
-          enrichedActivities = [
-            'Morning - Beach walk and breakfast by the sea',
-            'Afternoon - Water activities and sunbathing',
-            'Evening - Sunset views and seafood dinner',
-          ];
-        } else if (day.destinationName.toLowerCase().includes('temple') || 
-                   day.destinationName.toLowerCase().includes('amritsar')) {
-          enrichedActivities = [
-            'Morning - Visit the Golden Temple during peaceful hours',
-            'Afternoon - Explore the surrounding historic sites',
-            'Evening - Attend the evening ceremony',
-          ];
-        } else if (day.destinationName.toLowerCase().includes('palace') || 
-                   day.destinationName.toLowerCase().includes('jaipur')) {
-          enrichedActivities = [
-            'Morning - Visit the City Palace and nearby attractions',
-            'Afternoon - Explore local markets and handicraft shops',
-            'Evening - Light and sound show at a historic venue',
-          ];
-        } else if (day.destinationName.toLowerCase().includes('taj') || 
-                   day.destinationName.toLowerCase().includes('agra')) {
-          enrichedActivities = [
-            'Early morning - Taj Mahal at sunrise (best lighting)',
-            'Afternoon - Agra Fort and other historical sites',
-            'Evening - Mehtab Bagh gardens for sunset views of Taj Mahal',
-          ];
-        }
+        clusters.push({...currentCluster});
+        currentCluster = {
+          destinationId: day.destinationId,
+          startDay: day.day,
+          endDay: day.day
+        };
       }
-      
-      return {
-        ...day,
-        activities: enrichedActivities
-      };
-    });
+    }
+    
+    clusters.push({...currentCluster});
+    return clusters;
   };
 
-  // Enrich the itinerary with more detailed activities
-  const detailedItinerary = enrichItinerary(itinerary);
+  const destinationClusters = getDestinationClusters();
+
+  // Find the base hotel (location where you spend the most days)
+  const findBaseHotel = () => {
+    if (destinationClusters.length <= 1) return null;
+    
+    let maxDays = 0;
+    let baseDestId = '';
+    
+    destinationClusters.forEach(cluster => {
+      const daysCount = cluster.endDay - cluster.startDay + 1;
+      if (daysCount > maxDays) {
+        maxDays = daysCount;
+        baseDestId = cluster.destinationId;
+      }
+    });
+    
+    if (maxDays <= 1) return null;
+    
+    const baseDest = itinerary.find(day => day.destinationId === baseDestId);
+    return baseDest ? baseDest.destinationName : null;
+  };
+
+  const baseHotel = findBaseHotel();
+
+  // Create a map of destination IDs to the last day at that destination
+  const lastDaysByDestination: Record<string, number> = {};
+  itinerary.forEach((day, index) => {
+    const nextDifferentDestIndex = findLastIndex(itinerary, (d, i) => 
+      i >= index && d.destinationId === day.destinationId
+    );
+    
+    if (nextDifferentDestIndex !== -1) {
+      lastDaysByDestination[day.destinationId] = itinerary[nextDifferentDestIndex].day;
+    }
+  });
 
   return (
     <div className="space-y-6">
-      <Card className="border border-slate-200 shadow-sm">
-        <CardHeader className="pb-2">
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-xl font-bold text-slate-800">Your Journey Overview</CardTitle>
-            <Badge variant="outline" className="bg-white border-slate-200">
-              {itinerary.length} days
-            </Badge>
+      {/* Trip Overview Header */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg shadow-sm border border-blue-100">
+        <h3 className="text-lg font-semibold text-gray-800 mb-2">Trip Overview</h3>
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-1">
+            <Clock className="h-4 w-4 text-blue-500" />
+            <span className="text-sm">{itinerary.length} days</span>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-center gap-4 mb-4 bg-slate-50 p-3 rounded-md">
-            <div className="flex items-center">
-              {getTransportIcon()}
-              <span className="font-medium capitalize">{transportType} travel</span>
-            </div>
-            <div className="text-sm text-slate-500">
-              <span className="font-medium">{transportDetails.bestFor}</span>
-            </div>
-            <div className="w-full mt-2 text-sm">
-              <div className="flex justify-between text-slate-600">
-                <span>Average speed:</span>
-                <span className="font-medium">{transportInsights.speed}</span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Travel tip:</span>
-                <span className="font-medium">{transportInsights.travelTip}</span>
-              </div>
-            </div>
+          <div className="flex items-center gap-1">
+            <MapPin className="h-4 w-4 text-blue-500" />
+            <span className="text-sm">
+              {new Set(itinerary.map(day => day.destinationId)).size} destinations
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            {travelDetails.icon}
+            <span className="text-sm capitalize">{transportType} travel</span>
           </div>
           
-          {hasLongDistanceTravel && (
-            <div className="mb-4 p-3 bg-amber-50 border border-amber-100 rounded-md flex items-start">
-              <AlertTriangle className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-amber-700">
-                <p className="font-medium">Travel Alert:</p>
-                <p>{transportInsights.transitAlert}</p>
-                {transportType === 'car' && <p className="mt-1">Consider breaking long drives (300+ km) into multiple days.</p>}
-                {transportType === 'bus' && <p className="mt-1">Overnight buses are recommended for journeys over 8 hours.</p>}
-                {transportType === 'train' && <p className="mt-1">Check for direct trains or comfortable sleeper options.</p>}
-                {transportType === 'flight' && <p className="mt-1">Book flights at convenient times to maximize destination time.</p>}
-              </div>
+          {baseHotel && (
+            <div className="flex items-center gap-1">
+              <Hotel className="h-4 w-4 text-blue-500" />
+              <span className="text-sm">Base: {baseHotel}</span>
             </div>
           )}
+        </div>
 
-          {hasGeographicalAnomaly && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-md flex items-start">
-              <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-red-700">
-                <p className="font-medium">Geographical Anomaly Detected:</p>
-                <p>Your trip covers significant distances that may be impractical with {transportType} transport.</p>
-                <p className="mt-1">Consider:
-                  {transportType !== 'flight' && " Changing to flights for long distances or"}
-                  {" adding more transit days between destinations."}
-                </p>
+        {/* Transport Details */}
+        <div className="mt-4 pt-3 border-t border-blue-100">
+          <div className="flex items-start gap-4 flex-wrap">
+            <div className="flex-1 min-w-[150px]">
+              <h4 className="text-xs uppercase text-gray-500 font-semibold">Transport Details</h4>
+              <div className="mt-1 flex items-center gap-2">
+                {travelDetails.icon}
+                <span className="text-sm capitalize font-medium">{transportType}</span>
+              </div>
+              <div className="mt-1 text-sm text-gray-600">
+                <div className="grid grid-cols-[80px_1fr] gap-1 text-xs">
+                  <span className="text-gray-500">Average Speed:</span>
+                  <span>{travelDetails.speed}</span>
+                  <span className="text-gray-500">Cost per km:</span>
+                  <span>{travelDetails.cost}</span>
+                  <span className="text-gray-500">Best for:</span>
+                  <span>{travelDetails.advantages[0]}</span>
+                  <span className="text-gray-500">Overnight option:</span>
+                  <span>{travelDetails.overnight.includes('available') ? 'Yes' : 'No'}</span>
+                </div>
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
-      
-      <div className="relative pl-8 before:absolute before:left-3.5 before:top-0 before:h-full before:w-0.5 before:bg-slate-200">
-        {detailedItinerary.map((day, index) => {
-          const isLastDestinationInTrip = index === detailedItinerary.length - 1;
-          const nextDay = !isLastDestinationInTrip ? detailedItinerary[index + 1] : null;
-          const showDistanceToNext = !isLastDestinationInTrip && nextDay && 
-            day.destinationName !== nextDay.destinationName;
-          
-          // Determine if this is a new destination
-          const isNewDestination = index === 0 || 
-            day.destinationName !== detailedItinerary[index - 1].destinationName;
             
-          // Determine if this is first/last day at destination
-          const isFirstDayAtDestination = detailedItinerary.findIndex(d => 
-            d.destinationName === day.destinationName) === index;
-          const isLastDayAtDestination = detailedItinerary.findLastIndex(d => 
-            d.destinationName === day.destinationName) === index;
-
-          // Determine time spent at this destination
-          const daysAtThisDestination = detailedItinerary.filter(d => 
-            d.destinationName === day.destinationName && !d.isTransitDay).length;
-
-          return (
-            <div key={index} className="mb-6 relative">
-              <div className={`absolute -left-8 rounded-full w-6 h-6 flex items-center justify-center z-10 
-                ${day.isTransitDay 
-                  ? 'bg-blue-100 border border-blue-300 text-blue-700' 
-                  : isNewDestination
-                    ? 'bg-purple-100 border border-purple-300 text-purple-700'
-                    : 'bg-white border border-slate-200 text-slate-700'}`}>
-                <span className="text-xs font-medium">{day.day}</span>
+            {hasTransitDays && (
+              <div className="flex-1 min-w-[150px]">
+                <h4 className="text-xs uppercase text-gray-500 font-semibold">Travel Tips</h4>
+                <ul className="mt-1 text-xs space-y-1 text-gray-600">
+                  {transportType === 'train' && (
+                    <>
+                      <li className="flex items-center gap-1"><Info className="h-3 w-3 text-blue-500" /> Book window seats for scenic views</li>
+                      <li className="flex items-center gap-1"><Info className="h-3 w-3 text-blue-500" /> Carry snacks and water</li>
+                    </>
+                  )}
+                  {transportType === 'flight' && (
+                    <>
+                      <li className="flex items-center gap-1"><Info className="h-3 w-3 text-blue-500" /> Check in online 24h before flight</li>
+                      <li className="flex items-center gap-1"><Info className="h-3 w-3 text-blue-500" /> Arrive at airport 2h before departure</li>
+                    </>
+                  )}
+                  {transportType === 'bus' && (
+                    <>
+                      <li className="flex items-center gap-1"><Info className="h-3 w-3 text-blue-500" /> Choose seats in the middle for stability</li>
+                      <li className="flex items-center gap-1"><Info className="h-3 w-3 text-blue-500" /> Pack motion sickness medicine</li>
+                    </>
+                  )}
+                  {transportType === 'car' && (
+                    <>
+                      <li className="flex items-center gap-1"><Info className="h-3 w-3 text-blue-500" /> Check for tolls on your route</li>
+                      <li className="flex items-center gap-1"><Info className="h-3 w-3 text-blue-500" /> Download offline maps before leaving</li>
+                    </>
+                  )}
+                </ul>
               </div>
-              
-              <Card className={`
-                transition-all duration-300 hover:shadow-md 
-                ${day.isTransitDay 
-                  ? 'border-blue-100 bg-gradient-to-r from-blue-50/90 to-blue-50/20' 
-                  : isNewDestination
-                    ? 'border-purple-100 bg-gradient-to-r from-purple-50/90 to-purple-50/20'
-                    : 'border-slate-100 hover:border-slate-200'}`}>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-2 flex-grow">
-                      <h4 className="font-medium text-slate-800 flex items-center">
-                        {day.isTransitDay 
-                          ? getTransportIcon() 
-                          : <MapPin className="h-4 w-4 mr-2 text-red-500" />}
-                        {day.destinationName}
-                        {isNewDestination && !day.isTransitDay && (
-                          <Badge variant="outline" className="ml-2 border-purple-200 bg-purple-50 text-purple-700">
-                            New Destination
-                          </Badge>
-                        )}
-                        {day.isTransitDay && (
-                          <Badge variant="outline" className="ml-2 border-blue-200 bg-blue-50 text-blue-700">
-                            Travel Day
-                          </Badge>
-                        )}
-                        {!day.isTransitDay && isFirstDayAtDestination && daysAtThisDestination > 1 && (
-                          <Badge variant="outline" className="ml-2 border-green-200 bg-green-50 text-green-700">
-                            Arrival Day
-                          </Badge>
-                        )}
-                        {!day.isTransitDay && isLastDayAtDestination && daysAtThisDestination > 1 && !isFirstDayAtDestination && (
-                          <Badge variant="outline" className="ml-2 border-amber-200 bg-amber-50 text-amber-700">
-                            Departure Day
-                          </Badge>
-                        )}
-                      </h4>
-                      
-                      <div className="flex items-center text-sm text-slate-500">
-                        <CalendarIcon className="h-3.5 w-3.5 mr-1.5" />
-                        {format(new Date(day.date), 'E, MMM d, yyyy')}
-                      </div>
-                      
-                      {day.isTransitDay ? (
-                        <div className="mt-2">
-                          <Badge variant="secondary" className="mb-3 border border-blue-200 bg-blue-100/60 text-blue-700">
-                            Transit Day via {transportType}
-                          </Badge>
-                          
-                          <ul className="mt-2 text-sm space-y-2.5">
-                            {day.activities && day.activities.map((activity, i) => (
-                              <li key={i} className="flex items-start bg-slate-50/80 p-2 rounded-sm">
-                                {i === 0 ? getTransportIcon() : getActivityIcon(activity)}
-                                <span className="text-slate-700">{activity}</span>
-                              </li>
-                            ))}
-                          </ul>
-                          
-                          <div className="mt-3 p-2 bg-blue-50/50 rounded-sm border border-blue-100 text-sm">
-                            <div className="font-medium text-blue-700 mb-1">{transportType} Details:</div>
-                            <ul className="space-y-1 text-xs text-blue-700">
-                              {transportInsights.breakStops.map((stop, i) => (
-                                <li key={i} className="flex items-center">
-                                  <span className="bg-blue-100 rounded-full w-1.5 h-1.5 mr-1.5"></span>
-                                  {stop}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-                      ) : (
-                        <ul className="mt-2 text-sm space-y-2.5">
-                          {day.activities && day.activities.map((activity, i) => (
-                            <li key={i} className="flex items-start bg-slate-50/80 p-2 rounded-sm">
-                              {getActivityIcon(activity)}
-                              <span className="text-slate-700">{activity}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      
-                      {showDistanceToNext && (
-                        <div className="flex items-center mt-3 pt-2 border-t border-dashed border-slate-200">
-                          <div className="flex items-center gap-1 text-xs text-slate-500 w-full">
-                            <div className="flex items-center">
-                              <ArrowRight className="h-3 w-3 mr-1" />
-                              <span>Next: {nextDay?.destinationName}</span>
-                            </div>
-                            
-                            <div className="ml-auto flex items-center gap-1.5">
-                              {getTransportIcon()}
-                              <span className="text-slate-600 font-medium">
-                                {transportType === 'flight' ? '2-3h flight' : 
-                                transportType === 'train' ? '~8h by train' : 
-                                transportType === 'bus' ? '~10h by bus' : '~9h drive'}
-                              </span>
-                            </div>
-                          </div>
+            )}
+            
+            {isPremium && (
+              <div className="flex-1 min-w-[150px]">
+                <h4 className="text-xs uppercase text-gray-500 font-semibold">Premium Insights</h4>
+                <ul className="mt-1 text-xs space-y-1 text-gray-600">
+                  <li className="flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3 text-amber-500" /> 
+                    Best time to travel: Off-peak hours
+                  </li>
+                  <li className="flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3 text-amber-500" /> 
+                    Crowd prediction: Moderate
+                  </li>
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Itinerary Days */}
+      <div className="space-y-4">
+        {itinerary.map((day, index) => {
+          const isLastDayAtDestination = lastDaysByDestination[day.destinationId] === day.day;
+          const nextDest = getNextDestination(index);
+          const specializedActivities = getSpecializedActivities(
+            day.destinationName, 
+            day.day, 
+            isLastDayAtDestination
+          );
+          
+          // Transit details
+          const transitDetails = day.isTransitDay ? {
+            from: itinerary[index - 1]?.destinationName || 'Previous location',
+            to: day.destinationName,
+            departureTime: day.departureTime || '8:00 AM',
+            arrivalTime: day.arrivalTime || '4:00 PM',
+            restStops: day.freshUpStops || [
+              { time: '10:30 AM', location: 'Coffee break' },
+              { time: '1:00 PM', location: 'Lunch stop' }
+            ]
+          } : null;
+          
+          return (
+            <Card 
+              key={day.day} 
+              className={`overflow-hidden ${day.isTransitDay ? 'border-blue-200 bg-blue-50' : ''}`}
+            >
+              <CardContent className="p-0">
+                {/* Day Header */}
+                <div 
+                  className={`p-4 flex justify-between items-center cursor-pointer ${day.isTransitDay ? 'bg-blue-100/50' : 'bg-gray-50'}`}
+                  onClick={() => toggleDayExpansion(day.day)}
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium">Day {day.day}: {day.destinationName}</h3>
+                      {day.isTransitDay && <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200">Transit</Badge>}
+                      {isLastDayAtDestination && nextDest && !day.isTransitDay && (
+                        <div className="flex items-center text-xs text-gray-500">
+                          <ArrowRight className="h-3 w-3 mx-1" />
+                          <span>Next: {nextDest.destinationName}</span>
                         </div>
                       )}
                     </div>
-                    
-                    {isPremium && !day.isTransitDay && (
-                      <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-md p-3 ml-2 text-xs min-w-[150px]">
-                        <div className="font-medium mb-2 flex items-center text-purple-700">
-                          <Clock className="h-3 w-3 mr-1" />
-                          Premium Insights
-                        </div>
-                        <div className="space-y-1.5 text-indigo-700">
-                          <div className="flex gap-1.5 items-center">
-                            <span className="bg-indigo-100 p-1 rounded-full w-4 h-4 flex items-center justify-center">•</span>
-                            <span>Best time: 9-10 AM</span>
-                          </div>
-                          <div className="flex gap-1.5 items-center">
-                            <span className="bg-indigo-100 p-1 rounded-full w-4 h-4 flex items-center justify-center">•</span>
-                            <span>Avg visit: 3-4 hours</span>
-                          </div>
-                          {isPremium && (
-                            <div className="flex gap-1.5 items-center">
-                              <span className="bg-indigo-100 p-1 rounded-full w-4 h-4 flex items-center justify-center">•</span>
-                              <span>Crowd level: Low</span>
+                    <p className="text-sm text-gray-500">
+                      {format(new Date(day.date), 'PPP')}
+                    </p>
+                  </div>
+                  <div>
+                    {expandedDays[day.day] ? (
+                      <span className="text-xs rounded-full bg-gray-200 px-2 py-1">Hide Details</span>
+                    ) : (
+                      <span className="text-xs rounded-full bg-gray-200 px-2 py-1">Show Details</span>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Day Details (Expanded) */}
+                {expandedDays[day.day] && (
+                  <div className="p-4 border-t">
+                    {day.isTransitDay ? (
+                      <div className="space-y-3">
+                        <div className="flex flex-col">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center">
+                              <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                                {travelDetails.icon}
+                              </div>
+                              <div>
+                                <p className="font-medium">Transit Journey</p>
+                                <p className="text-sm text-gray-500">
+                                  {transitDetails?.from} to {transitDetails?.to}
+                                </p>
+                              </div>
                             </div>
-                          )}
+                            <Badge variant="outline" className="bg-blue-50">
+                              ~{day.transportDetails?.duration || '8 hours'}
+                            </Badge>
+                          </div>
+                          
+                          <div className="ml-4 pl-7 border-l-2 border-dashed border-blue-200 space-y-3">
+                            <div className="relative">
+                              <div className="absolute -left-[31px] top-0 h-6 w-6 rounded-full bg-green-100 flex items-center justify-center">
+                                <MapPin className="h-3 w-3 text-green-600" />
+                              </div>
+                              <p className="text-sm">
+                                <span className="font-medium">{transitDetails?.departureTime}:</span> Depart from {transitDetails?.from}
+                              </p>
+                            </div>
+                            
+                            {transitDetails?.restStops.map((stop, i) => (
+                              <div key={i} className="relative">
+                                <div className="absolute -left-[31px] top-0 h-6 w-6 rounded-full bg-amber-100 flex items-center justify-center">
+                                  <Coffee className="h-3 w-3 text-amber-600" />
+                                </div>
+                                <p className="text-sm">
+                                  <span className="font-medium">{stop.time}:</span> {stop.location}
+                                </p>
+                              </div>
+                            ))}
+                            
+                            <div className="relative">
+                              <div className="absolute -left-[31px] top-0 h-6 w-6 rounded-full bg-red-100 flex items-center justify-center">
+                                <MapPin className="h-3 w-3 text-red-600" />
+                              </div>
+                              <p className="text-sm">
+                                <span className="font-medium">{transitDetails?.arrivalTime}:</span> Arrive at {transitDetails?.to}
+                              </p>
+                            </div>
+                          </div>
                         </div>
+                        
+                        {isPremium && (
+                          <div className="bg-amber-50 border border-amber-200 p-3 rounded-md mt-3">
+                            <p className="text-sm font-medium text-amber-800">Premium Travel Advice</p>
+                            <ul className="text-xs text-amber-700 mt-1 space-y-1 list-disc pl-4">
+                              <li>Recommended rest stops marked with local attractions</li>
+                              <li>Best photo opportunities along the route</li>
+                              <li>Traffic prediction: Light traffic expected</li>
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <h4 className="font-medium text-sm">Daily Itinerary:</h4>
+                        <ul className="space-y-2 text-sm">
+                          {isPremium ? (
+                            // Premium users get detailed hourly schedule
+                            specializedActivities.map((activity, i) => (
+                              <li key={i} className="flex items-start">
+                                <span className="text-gray-500 min-w-[80px]">{activity.split(':')[0]}:</span>
+                                <span>{activity.split(':').slice(1).join(':').trim()}</span>
+                              </li>
+                            ))
+                          ) : (
+                            // Free users get basic activities
+                            day.activities.map((activity, i) => (
+                              <li key={i} className="flex items-center">
+                                <span className="h-1.5 w-1.5 rounded-full bg-gray-400 mr-2"></span>
+                                <span>{activity}</span>
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                        
+                        {isLastDayAtDestination && nextDest && (
+                          <div className="bg-blue-50 border border-blue-200 p-3 rounded-md mt-3">
+                            <p className="text-sm font-medium text-blue-800">Next Destination</p>
+                            <p className="text-xs text-blue-700 mt-1">
+                              Tomorrow you'll be heading to {nextDest.destinationName}. 
+                              {isPremium ? ` Prepare for a ${calculateTravelDetails(transportType).speed.includes('500') ? 'quick' : 'scenic'} journey!` : ''}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                )}
+              </CardContent>
+            </Card>
           );
         })}
       </div>
-      
-      {/* Transport-specific recommendations */}
-      <Card className="border border-slate-200 shadow-sm bg-slate-50/50">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-md font-medium text-slate-800">{transportType.charAt(0).toUpperCase() + transportType.slice(1)} Travel Tips</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-2 text-sm">
-            {transportType === 'car' && (
-              <>
-                <li className="flex gap-2">
-                  <span className="text-green-600">•</span>
-                  <span>For long drives, plan for a break every 2-3 hours</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-green-600">•</span>
-                  <span>Check road conditions before traveling during monsoon season</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-green-600">•</span>
-                  <span>Consider overnight stops for journeys over 500km</span>
-                </li>
-              </>
-            )}
-            
-            {transportType === 'bus' && (
-              <>
-                <li className="flex gap-2">
-                  <span className="text-blue-600">•</span>
-                  <span>Book sleeper buses for overnight journeys</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-blue-600">•</span>
-                  <span>Choose AC buses during summer months</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-blue-600">•</span>
-                  <span>Carry motion sickness medication for hilly routes</span>
-                </li>
-              </>
-            )}
-            
-            {transportType === 'train' && (
-              <>
-                <li className="flex gap-2">
-                  <span className="text-purple-600">•</span>
-                  <span>Book tickets at least 2 weeks in advance for reserved seating</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-purple-600">•</span>
-                  <span>Consider AC classes during summer months</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-purple-600">•</span>
-                  <span>Sleeper class is comfortable for overnight journeys</span>
-                </li>
-              </>
-            )}
-            
-            {transportType === 'flight' && (
-              <>
-                <li className="flex gap-2">
-                  <span className="text-sky-600">•</span>
-                  <span>Arrive at least 2 hours before domestic flights</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-sky-600">•</span>
-                  <span>Consider morning flights to avoid weather delays</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-sky-600">•</span>
-                  <span>Web check-in opens 24-48 hours before departure</span>
-                </li>
-              </>
-            )}
-          </ul>
-        </CardContent>
-      </Card>
     </div>
   );
 };

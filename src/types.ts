@@ -77,6 +77,8 @@ export interface TripPlan {
   selectedGuides: string[];
   selectedHotels: string[];
   selectedTransport: string;
+  transportType?: 'bus' | 'train' | 'flight' | 'car'; // Added for explicit transport type
+  isPremium?: boolean; // Added to indicate premium trip features
   startDate: string;
   endDate: string;
   numberOfDays: number;
@@ -90,6 +92,9 @@ export interface TripPlan {
   status: 'confirmed' | 'cancelled' | 'completed';
   createdAt: string;
   itinerary?: TripItineraryDay[];
+  photos?: string[]; // Added for trip photo gallery
+  baseHotel?: string; // Added to support base hotel concept
+  sleepTransport?: boolean; // Added to indicate if sleeping in transport
 }
 
 export interface TripItineraryDay {
@@ -99,6 +104,15 @@ export interface TripItineraryDay {
   destinationName: string;
   activities: string[];
   isTransitDay: boolean;
+  hotels?: string[]; // Added for hotel information
+  freshUpStops?: { time: string, location: string }[]; // Added for transport fresh-up stops
+  departureTime?: string; // Added for departure time
+  arrivalTime?: string; // Added for arrival time
+  transportDetails?: {
+    vehicle: string;
+    duration: string;
+    amenities: string[];
+  }; // Added for detailed transport information
 }
 
 export type Destination = {
