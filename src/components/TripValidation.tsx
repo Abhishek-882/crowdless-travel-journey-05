@@ -48,7 +48,7 @@ const TripValidation: React.FC<TripValidationProps> = ({
         <Check className="h-5 w-5 text-green-600" />
         <AlertTitle className="text-green-700 text-lg font-medium">Trip plan looks great!</AlertTitle>
         <AlertDescription className="text-green-600">
-          Your destinations can be comfortably visited within your selected timeframe.
+          Your destinations can be comfortably visited within your selected timeframe using {transportType} transport.
           {isPremium && " As a premium member, you'll get optimized routing and crowd avoidance."}
         </AlertDescription>
       </Alert>
@@ -63,7 +63,7 @@ const TripValidation: React.FC<TripValidationProps> = ({
           <div>
             <CardTitle className="text-amber-700 text-lg">Trip Needs Adjustments</CardTitle>
             <p className="text-amber-600 mt-1">
-              Your selected destinations require at least <strong>{daysNeeded}</strong> days to visit comfortably 
+              Your selected destinations require at least <strong>{daysNeeded}</strong> days to visit by {transportType}
               {daysShort && daysShort > 0 && <span> ({daysShort} more {daysShort === 1 ? 'day' : 'days'} needed)</span>}.
             </p>
           </div>
@@ -103,7 +103,7 @@ const TripValidation: React.FC<TripValidationProps> = ({
                             <ArrowRight className="h-4 w-4 mb-1" />
                             <div className="flex gap-1 items-center">
                               <Clock className="h-3 w-3" />
-                              <span>{Math.round(item.travelHoursToNext * 10) / 10}h travel</span>
+                              <span>{Math.round(item.travelHoursToNext * 10) / 10}h travel ({transportType})</span>
                             </div>
                             {item.travelDaysToNext > 0 && (
                               <Badge variant="outline" className="mt-1 bg-amber-50 text-amber-700 border-amber-200 text-[10px]">

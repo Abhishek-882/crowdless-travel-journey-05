@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -32,41 +33,56 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
   const { currentUser } = useAuth();
   const [showDetails, setShowDetails] = useState(false);
   const [showItinerary, setShowItinerary] = useState(false);
+  const [lastTransportType, setLastTransportType] = useState<'bus' | 'train' | 'flight' | 'car' | undefined>(selectedTransportType);
   
   const safeDestinationIds = destinationIds?.length ? destinationIds : [];
   
+  // Get the distance matrix between destinations
   const distanceMatrix = getDistanceMatrix(safeDestinationIds);
   
+  // Get transport recommendation based on current selection
   const transportRecommendation = getSuggestedTransport(
     safeDestinationIds, 
     numberOfDays || 1, 
     currentUser?.isPremium
   );
 
+  // Calculate trip feasibility with current transport
+  const currentTransportType = selectedTransportType || transportRecommendation?.recommendedType || 'car';
   const feasibilityCheck = checkTripFeasibility({
     destinationIds: safeDestinationIds,
-    transportType: selectedTransportType || transportRecommendation?.recommendedType || 'car',
+    transportType: currentTransportType,
     numberOfDays: numberOfDays || 1
   });
 
+  // Generate itinerary if start date is provided
   const itinerary = startDate ? 
     generateOptimalItinerary({
       destinationIds: safeDestinationIds,
-      transportType: selectedTransportType || transportRecommendation?.recommendedType || 'car',
+      transportType: currentTransportType,
       numberOfDays: numberOfDays || 1,
       startDate
     }) : [];
 
-  const totalTravelTime = transportRecommendation?.totalTravelTimeHours || 0;
-  const totalDistance = transportRecommendation?.totalDistanceKm || 0;
+  // Get travel details for the current transport type
+  const totalDistance = feasibilityCheck.totalDistance || 0;
+  const totalTravelTime = feasibilityCheck.totalTravelHours || 0;
   
   const travelTimePercentage = numberOfDays ? ((totalTravelTime / (numberOfDays * 24)) * 100) : 0;
   const isTravelHeavy = travelTimePercentage > 20; // If more than 20% of the trip is spent traveling
 
   const travelDetails = calculateTravelDetails(
     totalDistance, 
-    selectedTransportType || transportRecommendation?.recommendedType || 'car'
+    currentTransportType
   );
+  
+  // Check if transport type has changed and update last type
+  useEffect(() => {
+    if (selectedTransportType !== lastTransportType) {
+      setLastTransportType(selectedTransportType);
+      console.log('Transport type changed to:', selectedTransportType);
+    }
+  }, [selectedTransportType, lastTransportType]);
   
   useEffect(() => {
     if (!feasibilityCheck.feasible && onSuggestDays && feasibilityCheck.daysNeeded) {
@@ -81,11 +97,12 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
     }
   }, [transportRecommendation, onSuggestTransport, selectedTransportType]);
 
-  const TransportIcon = selectedTransportType === 'bus' 
+  // Get the appropriate icon based on transport type
+  const TransportIcon = currentTransportType === 'bus' 
     ? Bus 
-    : selectedTransportType === 'train' 
+    : currentTransportType === 'train' 
       ? Train 
-      : selectedTransportType === 'flight' 
+      : currentTransportType === 'flight' 
         ? Plane 
         : Car;
 
@@ -143,22 +160,14 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
           <div className="text-right">
             {transportRecommendation?.recommendedType && (
               <div className="mb-2">
-                <Label className="text-sm font-normal text-gray-500">Recommended:</Label>
+                <Label className="text-sm font-normal text-gray-500">
+                  {selectedTransportType ? 'Selected:' : 'Recommended:'}
+                </Label>
                 <div className="flex items-center justify-end">
-                  {selectedTransportType ? (
-                    <Badge className="capitalize">
-                      <TransportIcon className="h-3 w-3 mr-1" />
-                      {selectedTransportType}
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="capitalize">
-                      {transportRecommendation.recommendedType === 'bus' && <Bus className="h-3 w-3 mr-1" />}
-                      {transportRecommendation.recommendedType === 'train' && <Train className="h-3 w-3 mr-1" />}
-                      {transportRecommendation.recommendedType === 'flight' && <Plane className="h-3 w-3 mr-1" />}
-                      {transportRecommendation.recommendedType === 'car' && <Car className="h-3 w-3 mr-1" />}
-                      {transportRecommendation.recommendedType}
-                    </Badge>
-                  )}
+                  <Badge variant={selectedTransportType ? "default" : "outline"} className="capitalize">
+                    <TransportIcon className="h-3 w-3 mr-1" />
+                    {currentTransportType}
+                  </Badge>
                 </div>
               </div>
             )}
@@ -196,7 +205,7 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Days Adjustment Needed</AlertTitle>
             <AlertDescription className="text-sm">
-              <p>Your trip requires at least <strong>{feasibilityCheck.daysNeeded}</strong> days with the current transport and destinations.</p>
+              <p>Your trip requires at least <strong>{feasibilityCheck.daysNeeded}</strong> days with {currentTransportType} transport.</p>
               {feasibilityCheck.daysShort && feasibilityCheck.daysShort > 0 && (
                 <p className="mt-1">You need <strong>{feasibilityCheck.daysShort} more {feasibilityCheck.daysShort === 1 ? 'day' : 'days'}</strong> or consider changing transport or reducing destinations.</p>
               )}
@@ -218,7 +227,7 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
             <Info className="h-4 w-4" />
             <AlertTitle>Travel-Heavy Trip</AlertTitle>
             <AlertDescription>
-              {Math.round(travelTimePercentage)}% of your trip may be spent traveling.
+              {Math.round(travelTimePercentage)}% of your trip may be spent traveling with {currentTransportType}.
               Consider {numberOfDays < 5 ? 'adding more days' : 'reducing destinations'}.
             </AlertDescription>
           </Alert>
@@ -259,7 +268,7 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
                     <span className="font-medium">
                       {Math.round(distance.distanceKm)} km
                       <span className="text-gray-500 ml-2">
-                        (~{Math.round(distance.travelTimesByTransport[transportRecommendation.recommendedType])}h)
+                        (~{Math.round(distance.travelTimesByTransport[currentTransportType])}h)
                       </span>
                     </span>
                   </div>
@@ -267,7 +276,7 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
               </div>
             )}
 
-            {selectedTransportType && (
+            {currentTransportType && (
               <div className="mt-4">
                 <h4 className="text-sm font-medium mb-2">Transport Details</h4>
                 <div className="bg-gray-50 p-3 rounded-md text-sm">
@@ -350,13 +359,13 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
                           <span>Stay at hotel in {day.destinationName}</span>
                         </div>
                       )}
-                      {day.isTransitDay && selectedTransportType && (
+                      {day.isTransitDay && currentTransportType && (
                         <div className="flex items-center mt-1 text-xs">
                           <TransportIcon className="h-3 w-3 mr-1 flex-shrink-0" />
                           <span>
-                            {selectedTransportType === 'train' ? 'Travel by train' : 
-                             selectedTransportType === 'flight' ? 'Travel by flight' :
-                             selectedTransportType === 'bus' ? 'Travel by bus' : 
+                            {currentTransportType === 'train' ? 'Travel by train' : 
+                             currentTransportType === 'flight' ? 'Travel by flight' :
+                             currentTransportType === 'bus' ? 'Travel by bus' : 
                              'Travel by car'}
                           </span>
                         </div>
@@ -374,10 +383,10 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
                   <AlertTitle className="text-red-700">Transport Scheduling Alert</AlertTitle>
                   <AlertDescription className="text-xs">
                     <strong>Note:</strong> This itinerary has significant travel time. 
-                    {selectedTransportType === 'train' && ' Consider overnight trains to save daylight hours.'}
-                    {selectedTransportType === 'bus' && ' Consider overnight buses to save daylight hours.'}
-                    {selectedTransportType === 'car' && ' Consider breaking the journey with overnight stays midway.'}
-                    {selectedTransportType === 'flight' && ' Consider early morning or evening flights to maximize time at destinations.'}
+                    {currentTransportType === 'train' && ' Consider overnight trains to save daylight hours.'}
+                    {currentTransportType === 'bus' && ' Consider overnight buses to save daylight hours.'}
+                    {currentTransportType === 'car' && ' Consider breaking the journey with overnight stays midway.'}
+                    {currentTransportType === 'flight' && ' Consider early morning or evening flights to maximize time at destinations.'}
                   </AlertDescription>
                 </Alert>
               </div>
@@ -394,12 +403,12 @@ const TripDistanceCalculator: React.FC<TripDistanceCalculatorProps> = ({
                   <span className="text-purple-600 mr-2">•</span>
                   <span>Standard hotel check-in is at 2PM, check-out at 12PM.</span>
                 </li>
-                {selectedTransportType === 'train' || selectedTransportType === 'bus' ? (
+                {(currentTransportType === 'train' || currentTransportType === 'bus') && (
                   <li className="flex items-start">
                     <span className="text-purple-600 mr-2">•</span>
-                    <span>Overnight {selectedTransportType} options available for long routes.</span>
+                    <span>Overnight {currentTransportType} options available for long routes.</span>
                   </li>
-                ) : null}
+                )}
                 {itinerary.some(day => day.isTransitDay) && (
                   <li className="flex items-start">
                     <span className="text-purple-600 mr-2">•</span>
