@@ -5,12 +5,12 @@ import Layout from "../components/Layout";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, ShieldCheck, X, AlertTriangle, ArrowLeftRight } from "lucide-react";
+import { Check, ShieldCheck, AlertTriangle, ArrowLeftRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 const PremiumSuccess = () => {
-  const { currentUser, cancelPremium } = useAuth();
+  const { currentUser, cancelPremium, withdrawPremium } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [remainingDays, setRemainingDays] = useState<number | null>(null);
@@ -53,15 +53,9 @@ const PremiumSuccess = () => {
 
   const handleWithdrawPremium = async () => {
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast({
-        title: "Withdrawal Request Submitted",
-        description: "Your premium withdrawal request has been submitted. You will receive 25% of your payment back.",
-      });
-      
+      await withdrawPremium();
       setWithdrawDialogOpen(false);
+      navigate("/");
     } catch (error) {
       console.error("Failed to withdraw premium:", error);
       

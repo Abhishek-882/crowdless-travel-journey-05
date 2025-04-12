@@ -1,3 +1,4 @@
+
 export type User = {
   id: string;
   email: string;
@@ -7,6 +8,8 @@ export type User = {
   profileComplete: boolean;
   isPremium?: boolean;
   premiumPurchaseDate?: string; // Added for premium cancellation window
+  refundPercentage?: number; // Added for premium withdrawal
+  withdrawalDate?: string; // Added for tracking when premium was withdrawn
   profileData?: {
     phoneNumber: string;
     address: string;
@@ -154,6 +157,7 @@ export type AuthContextType = {
   completeProfile: (profileData: User['profileData']) => Promise<void>;
   upgradeToPremium: () => Promise<void>;
   cancelPremium: () => Promise<void>; // Added for premium cancellation
+  withdrawPremium: () => Promise<void>; // Added for premium withdrawal with partial refund
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
