@@ -119,7 +119,14 @@ export const generateOptimalItinerary = (
   
   const itinerary = [];
   let currentDate = new Date(options.startDate);
-  let currentDestIndex = 0;
+  
+  // Distribute days evenly among destinations
+  const numDestinations = selectedDestinations.length;
+  let daysPerDestination = Math.floor(options.numberOfDays / numDestinations);
+  let extraDays = options.numberOfDays % numDestinations;
+  
+  // Ensure at least one day per destination
+  daysPerDestination = Math.max(1, daysPerDestination);
   
   // Transport speeds in km/h
   const transportSpeeds = {
@@ -129,62 +136,51 @@ export const generateOptimalItinerary = (
     'car': 50
   };
   
-  for (let day = 1; day <= options.numberOfDays; day++) {
-    if (currentDestIndex < selectedDestinations.length) {
-      const destination = selectedDestinations[currentDestIndex];
-      
-      // Add a day for exploring the destination
-      itinerary.push({
-        day,
-        date: new Date(currentDate),
-        destinationId: destination.id,
-        destinationName: destination.name,
-        activities: [`Explore ${destination.name}`],
-        isTransitDay: false
-      });
-      
-      if (currentDestIndex < selectedDestinations.length - 1) {
-        const nextDest = selectedDestinations[currentDestIndex + 1];
-        const distanceKm = calculateDistance(destination, nextDest);
-        const travelHours = distanceKm / transportSpeeds[options.transportType];
+  let day = 1;
+  
+  // Assign days to each destination
+  for (let destIndex = 0; destIndex < selectedDestinations.length; destIndex++) {
+    const destination = selectedDestinations[destIndex];
+    
+    // Calculate days for this destination (distribute extra days from start)
+    const daysForThisDestination = daysPerDestination + (extraDays > 0 ? 1 : 0);
+    if (extraDays > 0) extraDays--;
+    
+    // Add regular exploration days
+    for (let destDay = 0; destDay < daysForThisDestination; destDay++) {
+      if (day <= options.numberOfDays) {
+        itinerary.push({
+          day,
+          date: new Date(currentDate),
+          destinationId: destination.id,
+          destinationName: destination.name,
+          activities: [`Explore ${destination.name}`],
+          isTransitDay: false
+        });
         
-        // If travel takes more than 4 hours, add a travel day
-        if (travelHours > 4) {
-          currentDate.setDate(currentDate.getDate() + 1);
-          day++;
-          
-          if (day <= options.numberOfDays) {
-            itinerary.push({
-              day,
-              date: new Date(currentDate),
-              destinationId: nextDest.id,
-              destinationName: nextDest.name,
-              activities: [`Travel from ${destination.name} to ${nextDest.name} (${Math.round(distanceKm)} km, ~${Math.round(travelHours)} hours)`],
-              isTransitDay: true
-            });
-          }
-        }
-        
-        currentDestIndex++;
-      } else {
-        // Last destination - add another activity day if we have days left
-        if (day < options.numberOfDays) {
-          currentDate.setDate(currentDate.getDate() + 1);
-          day++;
-          
-          itinerary.push({
-            day,
-            date: new Date(currentDate),
-            destinationId: destination.id,
-            destinationName: destination.name,
-            activities: [`More time to explore ${destination.name}`],
-            isTransitDay: false
-          });
-        }
+        day++;
+        currentDate.setDate(currentDate.getDate() + 1);
       }
     }
     
-    currentDate.setDate(currentDate.getDate() + 1);
+    // Add transit day if not the last destination
+    if (destIndex < selectedDestinations.length - 1 && day <= options.numberOfDays) {
+      const nextDest = selectedDestinations[destIndex + 1];
+      const distanceKm = calculateDistance(destination, nextDest);
+      const travelHours = distanceKm / transportSpeeds[options.transportType];
+      
+      itinerary.push({
+        day,
+        date: new Date(currentDate),
+        destinationId: nextDest.id,
+        destinationName: nextDest.name,
+        activities: [`Travel from ${destination.name} to ${nextDest.name} (${Math.round(distanceKm)} km, ~${Math.round(travelHours)} hours)`],
+        isTransitDay: true
+      });
+      
+      day++;
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
   }
   
   return itinerary;

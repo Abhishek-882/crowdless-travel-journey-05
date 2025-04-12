@@ -5,7 +5,7 @@ import Layout from "../components/Layout";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, ShieldCheck, X, AlertTriangle } from "lucide-react";
+import { Check, ShieldCheck, X, AlertTriangle, ArrowLeftRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
@@ -15,6 +15,9 @@ const PremiumSuccess = () => {
   const { toast } = useToast();
   const [remainingDays, setRemainingDays] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
+  const [daysSincePurchase, setDaysSincePurchase] = useState<number>(0);
+  const [canWithdraw, setCanWithdraw] = useState(false);
 
   useEffect(() => {
     if (!currentUser || !currentUser.isPremium) {
@@ -22,12 +25,19 @@ const PremiumSuccess = () => {
       return;
     }
 
-    // Calculate days remaining for cancellation
+    // Calculate days since purchase
     if (currentUser.premiumPurchaseDate) {
       const purchaseDate = new Date(currentUser.premiumPurchaseDate);
       const currentDate = new Date();
+      
+      // Calculate days for cancellation
       const daysDiff = 7 - Math.floor((currentDate.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24));
       setRemainingDays(Math.max(0, daysDiff));
+      
+      // Calculate days since purchase for withdrawal
+      const totalDaysSincePurchase = Math.floor((currentDate.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24));
+      setDaysSincePurchase(totalDaysSincePurchase);
+      setCanWithdraw(totalDaysSincePurchase > 7);
     }
   }, [currentUser, navigate]);
 
@@ -38,6 +48,28 @@ const PremiumSuccess = () => {
       navigate("/");
     } catch (error) {
       console.error("Failed to cancel premium:", error);
+    }
+  };
+
+  const handleWithdrawPremium = async () => {
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      toast({
+        title: "Withdrawal Request Submitted",
+        description: "Your premium withdrawal request has been submitted. You will receive 25% of your payment back.",
+      });
+      
+      setWithdrawDialogOpen(false);
+    } catch (error) {
+      console.error("Failed to withdraw premium:", error);
+      
+      toast({
+        title: "Withdrawal Failed",
+        description: "There was an error processing your withdrawal request.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -106,15 +138,19 @@ const PremiumSuccess = () => {
                 </div>
               </div>
 
-              {remainingDays !== null && remainingDays > 0 && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-6">
+              {daysSincePurchase > 0 && (
+                <div className={`border rounded-lg p-4 mt-6 ${canWithdraw ? 'bg-blue-50 border-blue-200' : 'bg-amber-50 border-amber-200'}`}>
                   <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <AlertTriangle className={`h-5 w-5 mt-0.5 flex-shrink-0 ${canWithdraw ? 'text-blue-600' : 'text-amber-600'}`} />
                     <div>
-                      <h4 className="font-medium text-amber-800">Cancellation Policy</h4>
-                      <p className="text-amber-700 text-sm mt-1">
-                        You can cancel your premium subscription within 7 days of purchase for a full refund.
-                        You have {remainingDays} day{remainingDays !== 1 ? 's' : ''} remaining to cancel.
+                      <h4 className={`font-medium ${canWithdraw ? 'text-blue-800' : 'text-amber-800'}`}>
+                        {canWithdraw ? 'Premium Withdrawal Available' : 'Cancellation Policy'}
+                      </h4>
+                      <p className={`text-sm mt-1 ${canWithdraw ? 'text-blue-700' : 'text-amber-700'}`}>
+                        {canWithdraw 
+                          ? 'Your premium subscription has been active for more than 7 days. You can withdraw with a 25% refund.'
+                          : `You can cancel your premium subscription within 7 days of purchase for a full refund. You have ${remainingDays} day${remainingDays !== 1 ? 's' : ''} remaining to cancel.`
+                        }
                       </p>
                     </div>
                   </div>
@@ -126,40 +162,77 @@ const PremiumSuccess = () => {
                 Try Premium Trip Planner
               </Button>
               
-              {remainingDays !== null && remainingDays > 0 && (
-                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="border-red-300 text-red-600 hover:bg-red-50">
-                      Cancel Premium
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Cancel Premium Subscription?</DialogTitle>
-                      <DialogDescription>
-                        Are you sure you want to cancel your premium subscription? You will lose access to all premium features immediately.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4">
-                      <p>Your premium benefits include:</p>
-                      <ul className="list-disc pl-6 mt-2 space-y-1">
-                        <li>Real-time crowd data</li>
-                        <li>Exclusive guides and experiences</li>
-                        <li>Advanced trip planning tools</li>
-                        <li>Photo galleries for trips</li>
-                      </ul>
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                        Keep Premium
+              <div className="flex gap-3">
+                {canWithdraw && (
+                  <Dialog open={withdrawDialogOpen} onOpenChange={setWithdrawDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="border-blue-300 text-blue-600 hover:bg-blue-50">
+                        <ArrowLeftRight className="h-4 w-4 mr-1" />
+                        Withdraw Premium (25% Refund)
                       </Button>
-                      <Button variant="destructive" onClick={handleCancelPremium}>
-                        Yes, Cancel Premium
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Withdraw Premium Subscription?</DialogTitle>
+                        <DialogDescription>
+                          Are you sure you want to withdraw your premium subscription? You will receive a 25% refund of your payment.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="py-4">
+                        <p>When you withdraw premium:</p>
+                        <ul className="list-disc pl-6 mt-2 space-y-1">
+                          <li>You'll immediately lose access to premium features</li>
+                          <li>You'll receive 25% of your payment back</li>
+                          <li>Your premium trips will be converted to standard trips</li>
+                        </ul>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setWithdrawDialogOpen(false)}>
+                          Keep Premium
+                        </Button>
+                        <Button variant="destructive" onClick={handleWithdrawPremium}>
+                          Yes, Withdraw Premium
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              
+                {remainingDays !== null && remainingDays > 0 && (
+                  <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="border-red-300 text-red-600 hover:bg-red-50">
+                        Cancel Premium
                       </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              )}
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Cancel Premium Subscription?</DialogTitle>
+                        <DialogDescription>
+                          Are you sure you want to cancel your premium subscription? You will lose access to all premium features immediately.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="py-4">
+                        <p>Your premium benefits include:</p>
+                        <ul className="list-disc pl-6 mt-2 space-y-1">
+                          <li>Real-time crowd data</li>
+                          <li>Exclusive guides and experiences</li>
+                          <li>Advanced trip planning tools</li>
+                          <li>Photo galleries for trips</li>
+                        </ul>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                          Keep Premium
+                        </Button>
+                        <Button variant="destructive" onClick={handleCancelPremium}>
+                          Yes, Cancel Premium
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </div>
             </CardFooter>
           </Card>
         </div>

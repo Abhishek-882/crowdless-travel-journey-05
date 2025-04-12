@@ -382,8 +382,8 @@ const BookingDetails = () => {
                     <CardContent>
                       <TripItinerary 
                         itinerary={tripPlan.itinerary} 
-                        transportType={tripPlan.transportType} 
-                        isPremium={tripPlan.isPremium}
+                        transportType={tripPlan.transportType || 'car'}
+                        isPremium={!!tripPlan.isPremium}
                       />
                     </CardContent>
                   </Card>

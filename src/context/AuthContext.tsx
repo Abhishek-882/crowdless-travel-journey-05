@@ -271,6 +271,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const withdrawPremium = async (): Promise<void> => {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      if (!currentUser) {
+        throw new Error('You must be logged in to withdraw premium');
+      }
+
+      if (!currentUser.isPremium) {
+        throw new Error('You do not have an active premium subscription');
+      }
+
+      const purchaseDate = currentUser.premiumPurchaseDate 
+        ? new Date(currentUser.premiumPurchaseDate) 
+        : new Date();
+      const currentDate = new Date();
+      const daysSincePurchase = Math.floor((currentDate.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (daysSincePurchase <= 7) {
+        throw new Error('Premium withdrawal is only available after 7 days of purchase');
+      }
+
+      const updatedUser: User = {
+        ...currentUser,
+        isPremium: false,
+        premiumPurchaseDate: undefined,
+        refundPercentage: 25,
+        withdrawalDate: new Date().toISOString()
+      };
+
+      setCurrentUser(updatedUser);
+      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const userIndex = users.findIndex((u: User) => u.id === currentUser.id);
+      if (userIndex !== -1) {
+        users[userIndex] = updatedUser;
+        localStorage.setItem('users', JSON.stringify(users));
+      }
+
+      toast({
+        title: 'Premium Withdrawn',
+        description: 'Your premium subscription has been withdrawn. You will receive a 25% refund.',
+      });
+    } catch (err) {
+      const errorMsg = (err as Error).message || 'Failed to withdraw premium';
+      setError(errorMsg);
+      toast({
+        title: 'Withdrawal Failed',
+        description: errorMsg,
+        variant: 'destructive',
+      });
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const value: AuthContextType = {
     currentUser,
     login,
@@ -279,6 +340,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     completeProfile,
     upgradeToPremium,
     cancelPremium,
+    withdrawPremium,
     isAuthenticated: !!currentUser,
     isLoading,
     error,
