@@ -20,6 +20,7 @@ import Destinations from "./pages/Destinations";
 import DestinationDetail from "./pages/DestinationDetail";
 import About from "./pages/About";
 import MyBookings from "./pages/MyBookings";
+import BookingDetails from "./pages/BookingDetails";
 import TripPlanner from "./pages/TripPlanner";
 import PremiumFeatures from "./pages/PremiumFeatures";
 import PremiumSuccess from "./pages/PremiumSuccess";
@@ -72,6 +73,15 @@ const App = () => (
                     element={
                       <RouteGuard requireAuth={true}>
                         <MyBookings />
+                      </RouteGuard>
+                    } 
+                  />
+                  
+                  <Route 
+                    path="/bookings/:id" 
+                    element={
+                      <RouteGuard requireAuth={true}>
+                        <BookingDetails />
                       </RouteGuard>
                     } 
                   />

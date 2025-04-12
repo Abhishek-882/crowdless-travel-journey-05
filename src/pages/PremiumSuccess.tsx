@@ -1,145 +1,167 @@
 
-import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Layout from '../components/Layout';
-import { useAuth } from '../context/AuthContext';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Check, Users, Clock, MapPin, Star } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import Layout from "../components/Layout";
+import { useAuth } from "../context/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Check, ShieldCheck, X, AlertTriangle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
-const PremiumSuccess: React.FC = () => {
-  const { currentUser } = useAuth();
+const PremiumSuccess = () => {
+  const { currentUser, cancelPremium } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+  const [remainingDays, setRemainingDays] = useState<number | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
   useEffect(() => {
-    if (!currentUser?.isPremium) {
-      navigate('/premium');
+    if (!currentUser || !currentUser.isPremium) {
+      navigate("/premium");
       return;
     }
-    
-    toast({
-      title: 'Premium Activated!',
-      description: 'You now have access to all premium features.',
-      variant: 'default',
-    });
-  }, [currentUser, navigate, toast]);
 
-  if (!currentUser?.isPremium) {
-    return null;
-  }
-
-  const premiumBenefits = [
-    {
-      title: 'Live Crowd Analytics',
-      description: 'Access real-time and historical crowd data for all destinations',
-      icon: <Users className="h-6 w-6 text-primary" />,
-      accessMethod: 'Hover over any crowd indicator to see detailed percentages'
-    },
-    {
-      title: 'Best Time Predictions',
-      description: 'Get AI-powered recommendations on the best times to visit each destination',
-      icon: <Clock className="h-6 w-6 text-primary" />,
-      accessMethod: 'Click "Best Time" on any destination card for hourly predictions'
-    },
-    {
-      title: 'Free Tour Guides',
-      description: 'Enjoy one free tour guide at each destination on your trip',
-      icon: <MapPin className="h-6 w-6 text-primary" />,
-      accessMethod: 'Guide fees automatically waived during booking'
-    },
-    {
-      title: 'Advanced Trip Planning',
-      description: 'Access advanced trip planning tools with predicted crowd levels',
-      icon: <Star className="h-6 w-6 text-primary" />,
-      accessMethod: 'Use the Trip Planner with premium optimization features'
+    // Calculate days remaining for cancellation
+    if (currentUser.premiumPurchaseDate) {
+      const purchaseDate = new Date(currentUser.premiumPurchaseDate);
+      const currentDate = new Date();
+      const daysDiff = 7 - Math.floor((currentDate.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24));
+      setRemainingDays(Math.max(0, daysDiff));
     }
-  ];
+  }, [currentUser, navigate]);
+
+  const handleCancelPremium = async () => {
+    try {
+      await cancelPremium();
+      setDialogOpen(false);
+      navigate("/");
+    } catch (error) {
+      console.error("Failed to cancel premium:", error);
+    }
+  };
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-12 max-w-5xl">
-        <div className="bg-gradient-to-r from-amber-50 to-amber-100 rounded-lg p-8 mb-10 text-center relative overflow-hidden">
-          <div className="absolute top-0 right-0 bg-amber-200 text-amber-800 px-4 py-1 rounded-bl-lg">
-            Premium Active
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-bold mb-4">Welcome to Premium!</h1>
-          <p className="text-lg text-gray-700 mb-6 max-w-2xl mx-auto">
-            You now have access to exclusive features designed to enhance your travel experience.
-            Let's explore what's now available to you!
-          </p>
-          <Badge variant="outline" className="bg-amber-200 text-amber-800 border-amber-300 hover:bg-amber-300">
-            Premium Member
-          </Badge>
-        </div>
-
-        <h2 className="text-2xl font-bold mb-6">Your Premium Features</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-          {premiumBenefits.map((benefit, index) => (
-            <Card key={index} className="border-primary/20 overflow-hidden">
-              <CardHeader className="bg-primary/5 border-b border-primary/10">
-                <div className="flex items-center gap-3">
-                  {benefit.icon}
-                  <CardTitle>{benefit.title}</CardTitle>
+      <div className="container py-12">
+        <div className="max-w-3xl mx-auto">
+          <Card>
+            <CardHeader className="text-center">
+              <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <ShieldCheck className="h-10 w-10 text-green-600" />
+              </div>
+              <CardTitle className="text-3xl">Premium Upgrade Successful!</CardTitle>
+              <CardDescription>
+                Thank you for upgrading to our premium plan. You now have access to all premium features.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <h3 className="font-semibold text-lg mb-2">Premium Features</h3>
+                  <ul className="space-y-2">
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-green-600 mt-0.5" />
+                      <span>Real-time crowd data and analytics</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-green-600 mt-0.5" />
+                      <span>Exclusive access to top-rated guides</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-green-600 mt-0.5" />
+                      <span>Priority customer support</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-green-600 mt-0.5" />
+                      <span>Detailed trip planning tools</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-green-600 mt-0.5" />
+                      <span>Trip photo gallery</span>
+                    </li>
+                  </ul>
                 </div>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <CardDescription className="text-base text-gray-600 mb-4">
-                  {benefit.description}
-                </CardDescription>
-                <div className="flex items-start gap-2 bg-blue-50 p-4 rounded-md">
-                  <Check className="h-5 w-5 text-blue-600 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-blue-700">How to access</p>
-                    <p className="text-sm text-blue-600">{benefit.accessMethod}</p>
+
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <h3 className="font-semibold text-lg mb-2">Next Steps</h3>
+                  <ul className="space-y-2">
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-green-600 mt-0.5" />
+                      <span>Try the premium trip planner</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-green-600 mt-0.5" />
+                      <span>Access real-time crowd data</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-green-600 mt-0.5" />
+                      <span>Book exclusive experiences</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-green-600 mt-0.5" />
+                      <span>Create a photo gallery for your trips</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {remainingDays !== null && remainingDays > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-6">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-medium text-amber-800">Cancellation Policy</h4>
+                      <p className="text-amber-700 text-sm mt-1">
+                        You can cancel your premium subscription within 7 days of purchase for a full refund.
+                        You have {remainingDays} day{remainingDays !== 1 ? 's' : ''} remaining to cancel.
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        <Card className="border-amber-200 bg-amber-50 mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Star className="h-5 w-5 fill-amber-500 text-amber-500" />
-              Track Your Premium Value
-            </CardTitle>
-            <CardDescription>
-              See how much you're saving with your premium benefits
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-              <div className="bg-white p-4 rounded-md shadow-sm">
-                <p className="text-sm text-gray-500">Guides Discount</p>
-                <p className="text-2xl font-bold text-amber-600">₹0</p>
-                <p className="text-xs text-gray-400">Start booking to see savings</p>
-              </div>
-              <div className="bg-white p-4 rounded-md shadow-sm">
-                <p className="text-sm text-gray-500">Premium Insights</p>
-                <p className="text-2xl font-bold text-amber-600">0</p>
-                <p className="text-xs text-gray-400">Times used premium data</p>
-              </div>
-              <div className="bg-white p-4 rounded-md shadow-sm">
-                <p className="text-sm text-gray-500">Time Saved</p>
-                <p className="text-2xl font-bold text-amber-600">0 min</p>
-                <p className="text-xs text-gray-400">Using crowd data insights</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Button onClick={() => navigate('/destinations')} className="px-8">
-            Explore Destinations
-          </Button>
-          <Button onClick={() => navigate('/trip-planner')} variant="outline" className="px-8">
-            Plan Your Trip
-          </Button>
+              )}
+            </CardContent>
+            <CardFooter className="flex flex-col sm:flex-row gap-4 justify-between">
+              <Button variant="default" onClick={() => navigate("/trip-planner")}>
+                Try Premium Trip Planner
+              </Button>
+              
+              {remainingDays !== null && remainingDays > 0 && (
+                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="border-red-300 text-red-600 hover:bg-red-50">
+                      Cancel Premium
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Cancel Premium Subscription?</DialogTitle>
+                      <DialogDescription>
+                        Are you sure you want to cancel your premium subscription? You will lose access to all premium features immediately.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                      <p>Your premium benefits include:</p>
+                      <ul className="list-disc pl-6 mt-2 space-y-1">
+                        <li>Real-time crowd data</li>
+                        <li>Exclusive guides and experiences</li>
+                        <li>Advanced trip planning tools</li>
+                        <li>Photo galleries for trips</li>
+                      </ul>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                        Keep Premium
+                      </Button>
+                      <Button variant="destructive" onClick={handleCancelPremium}>
+                        Yes, Cancel Premium
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </CardFooter>
+          </Card>
         </div>
       </div>
     </Layout>

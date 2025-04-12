@@ -1,9 +1,21 @@
-
 // src/context/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, AuthContextType } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
+
+type AuthContextType = {
+  currentUser: User | null;
+  login: (email: string, password: string, rememberMe: boolean) => Promise<void>;
+  signup: (userData: Omit<User, 'id' | 'bookings' | 'profileComplete'>) => Promise<void>;
+  logout: () => void;
+  completeProfile: (profileData: User['profileData']) => Promise<void>;
+  upgradeToPremium: () => Promise<void>;
+  cancelPremium: () => Promise<void>;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -13,7 +25,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Check if there's a logged-in user in localStorage
   useEffect(() => {
     const loadUser = () => {
       try {
@@ -36,25 +47,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
 
     try {
-      // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Get users from localStorage
       const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
       
-      // Find user with matching email
       const user = users.find((u) => u.email === email);
 
       if (!user) {
         throw new Error('User not found');
       }
 
-      // Check password
       if (user.password !== password) {
         throw new Error('Incorrect password');
       }
 
-      // Save current user
       setCurrentUser(user);
       localStorage.setItem('currentUser', JSON.stringify(user));
 
@@ -81,18 +87,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
 
     try {
-      // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Get users from localStorage
       const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
 
-      // Check if user already exists
       if (users.some((u) => u.email === userData.email)) {
         throw new Error('Email already in use');
       }
 
-      // Create new user
       const newUser: User = {
         ...userData,
         id: `user_${uuidv4()}`,
@@ -101,11 +103,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isPremium: false
       };
 
-      // Add to users array
       const updatedUsers = [...users, newUser];
       localStorage.setItem('users', JSON.stringify(updatedUsers));
 
-      // Set as current user
       setCurrentUser(newUser);
       localStorage.setItem('currentUser', JSON.stringify(newUser));
 
@@ -128,7 +128,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = (): void => {
-    // Remove current user from localStorage and state
     localStorage.removeItem('currentUser');
     setCurrentUser(null);
     toast({
@@ -146,21 +145,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('No user is logged in');
       }
 
-      // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Update user profile
       const updatedUser: User = {
         ...currentUser,
         profileComplete: true,
         profileData,
       };
 
-      // Update current user in state and localStorage
       setCurrentUser(updatedUser);
       localStorage.setItem('currentUser', JSON.stringify(updatedUser));
 
-      // Update user in users array
       const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
       const updatedUsers = users.map((u) => 
         u.id === updatedUser.id ? updatedUser : u
@@ -190,39 +185,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
 
     try {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
       if (!currentUser) {
-        throw new Error('No user is logged in');
+        throw new Error('You must be logged in to upgrade to premium');
       }
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Update user premium status
       const updatedUser: User = {
         ...currentUser,
         isPremium: true,
+        premiumPurchaseDate: new Date().toISOString(),
       };
 
-      // Update current user in state and localStorage
       setCurrentUser(updatedUser);
       localStorage.setItem('currentUser', JSON.stringify(updatedUser));
 
-      // Update user in users array
-      const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
-      const updatedUsers = users.map((u) => 
-        u.id === updatedUser.id ? updatedUser : u
-      );
-      localStorage.setItem('users', JSON.stringify(updatedUsers));
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const userIndex = users.findIndex((u: User) => u.id === currentUser.id);
+      if (userIndex !== -1) {
+        users[userIndex] = updatedUser;
+        localStorage.setItem('users', JSON.stringify(users));
+      }
 
       toast({
-        title: 'Premium Activated',
-        description: 'You are now a premium user with access to all features.',
+        title: 'Upgrade Successful',
+        description: 'You are now a premium member! You can cancel within 7 days for a full refund.',
       });
     } catch (err) {
-      const errorMsg = (err as Error).message;
+      const errorMsg = (err as Error).message || 'Failed to upgrade to premium';
       setError(errorMsg);
       toast({
-        title: 'Error',
+        title: 'Upgrade Failed',
         description: errorMsg,
         variant: 'destructive',
       });
@@ -232,23 +225,79 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        currentUser,
-        isAuthenticated: !!currentUser,
-        isLoading,
-        error,
-        login,
-        signup,
-        logout,
-        completeProfile,
-        upgradeToPremium,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  const cancelPremium = async (): Promise<void> => {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      if (!currentUser) {
+        throw new Error('You must be logged in to cancel premium');
+      }
+
+      if (!currentUser.isPremium) {
+        throw new Error('You do not have an active premium subscription');
+      }
+
+      const purchaseDate = currentUser.premiumPurchaseDate 
+        ? new Date(currentUser.premiumPurchaseDate) 
+        : new Date();
+      const currentDate = new Date();
+      const daysSincePurchase = Math.floor((currentDate.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (daysSincePurchase > 7) {
+        throw new Error('Premium can only be cancelled within 7 days of purchase');
+      }
+
+      const updatedUser: User = {
+        ...currentUser,
+        isPremium: false,
+        premiumPurchaseDate: undefined,
+      };
+
+      setCurrentUser(updatedUser);
+      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const userIndex = users.findIndex((u: User) => u.id === currentUser.id);
+      if (userIndex !== -1) {
+        users[userIndex] = updatedUser;
+        localStorage.setItem('users', JSON.stringify(users));
+      }
+
+      toast({
+        title: 'Premium Cancelled',
+        description: 'Your premium subscription has been cancelled.',
+      });
+    } catch (err) {
+      const errorMsg = (err as Error).message || 'Failed to cancel premium';
+      setError(errorMsg);
+      toast({
+        title: 'Cancellation Failed',
+        description: errorMsg,
+        variant: 'destructive',
+      });
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const value: AuthContextType = {
+    currentUser,
+    login,
+    signup,
+    logout,
+    completeProfile,
+    upgradeToPremium,
+    cancelPremium,
+    isAuthenticated: !!currentUser,
+    isLoading,
+    error,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Destination, DestinationContextType, CrowdData, CrowdLevel } from '../types';
 import { useToast } from '@/hooks/use-toast';
 import { indiaDestinations } from '../data/destinations';
+import { useAuth } from './AuthContext';
 
 const DestinationContext = createContext<DestinationContextType | undefined>(undefined);
 
@@ -20,6 +21,8 @@ export const DestinationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   });
   
   const { toast } = useToast();
+  const { currentUser } = useAuth();
+  const isPremiumUser = !!currentUser?.isPremium;
 
   // Initialize destinations
   useEffect(() => {
@@ -108,6 +111,19 @@ export const DestinationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Determine the current crowd level based on time
   const getCurrentCrowdLevel = (crowdData: CrowdData): CrowdLevel => {
     try {
+      // For non-premium users, we show a simulated crowd level
+      // that doesn't change in real-time
+      if (!isPremiumUser) {
+        // Return a static crowd level based on the average
+        const values = Object.values(crowdData);
+        const avgCrowd = values.reduce((a, b) => a + b, 0) / values.length;
+        
+        if (avgCrowd <= 40) return 'low';
+        if (avgCrowd <= 70) return 'medium';
+        return 'high';
+      }
+      
+      // For premium users, show real-time crowd data
       const currentHour = new Date().getHours();
       const timeKey = `${currentHour.toString().padStart(2, '0')}:00`;
       

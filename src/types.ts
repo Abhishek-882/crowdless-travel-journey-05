@@ -6,6 +6,7 @@ export type User = {
   bookings: string[]; // IDs of bookings
   profileComplete: boolean;
   isPremium?: boolean;
+  premiumPurchaseDate?: string; // Added for premium cancellation window
   profileData?: {
     phoneNumber: string;
     address: string;
@@ -31,6 +32,7 @@ export type Booking = {
   totalAmount: number;
   status: 'confirmed' | 'cancelled' | 'pending';
   createdAt: string;
+  tripPlanId?: string; // Reference to a trip plan if this booking is related to a trip
 };
 
 export type CrowdLevel = 'low' | 'medium' | 'high';
@@ -96,6 +98,7 @@ export interface TripPlan {
   baseHotel?: string; // Added to support base hotel concept
   sleepTransport?: boolean; // Added to indicate if sleeping in transport
   travelStyle?: 'base-hotel' | 'mobile'; // Added to indicate travel style
+  premiumPurchaseDate?: string; // Added to track when premium was purchased
 }
 
 export interface TripItineraryDay {
@@ -150,6 +153,7 @@ export type AuthContextType = {
   logout: () => void;
   completeProfile: (profileData: User['profileData']) => Promise<void>;
   upgradeToPremium: () => Promise<void>;
+  cancelPremium: () => Promise<void>; // Added for premium cancellation
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
