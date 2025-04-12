@@ -1,13 +1,13 @@
+
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from 'lucide-react';
-import { NavLinks } from './NavLinks';
-import { NavLogo } from './NavLogo';
-import { NavUserMenu } from './NavUserMenu';
-
+import NavLinks from './navbar/NavLinks';
+import NavLogo from './navbar/NavLogo';
+import NavUserMenu from './navbar/NavUserMenu';
 import { ThemeToggle } from './ThemeToggle';
 
 const Navbar = () => {
