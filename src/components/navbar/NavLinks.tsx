@@ -26,13 +26,13 @@ const NavLinks: React.FC<NavLinksProps> = ({
         isActive(path) ? 'bg-primary/10 text-primary' : 'text-gray-700'
       }`;
     }
-    return `font-medium ${
+    return `font-medium space-x-4 ${
       isActive(path) ? 'text-primary' : 'text-gray-700 hover:text-primary'
     }`;
   };
 
   return (
-    <>
+    <div className="flex items-center space-x-6"> {/* Added space-x-6 to create gaps */}
       <Link
         to="/"
         className={linkClasses('/')}
@@ -73,7 +73,7 @@ const NavLinks: React.FC<NavLinksProps> = ({
           Premium
         </Link>
       )}
-    </>
+    </div>
   );
 };
 
