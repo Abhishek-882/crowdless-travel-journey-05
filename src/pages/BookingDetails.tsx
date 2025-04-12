@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useBookings } from "../context/BookingContext";
@@ -41,7 +40,6 @@ const BookingDetails = () => {
       try {
         setLoading(true);
 
-        // Check if it's a regular booking or a trip plan
         if (id?.startsWith("booking_")) {
           const bookingData = getBookingById(id);
           if (bookingData) {
@@ -59,12 +57,10 @@ const BookingDetails = () => {
           if (tripPlanData) {
             setTripPlan(tripPlanData);
             
-            // Calculate distance matrix for all destinations
             if (tripPlanData.selectedDestinations?.length > 1) {
               const matrix = getDistanceMatrix(tripPlanData.selectedDestinations);
               setDistances(matrix);
               
-              // Calculate total trip distance
               let totalDist = 0;
               const visited = new Set();
               
@@ -167,7 +163,6 @@ const BookingDetails = () => {
               const destination = getDestinationById(destId);
               if (!destination) return null;
 
-              // Show distance to next destination
               let distanceInfo = null;
               if (index < tripPlan.selectedDestinations.length - 1) {
                 const nextDestId = tripPlan.selectedDestinations[index + 1];
@@ -385,7 +380,11 @@ const BookingDetails = () => {
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <TripItinerary itinerary={tripPlan.itinerary} />
+                      <TripItinerary 
+                        itinerary={tripPlan.itinerary} 
+                        transportType={tripPlan.transportType} 
+                        isPremium={tripPlan.isPremium}
+                      />
                     </CardContent>
                   </Card>
                 )}

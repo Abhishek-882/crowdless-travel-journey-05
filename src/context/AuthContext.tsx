@@ -4,19 +4,6 @@ import { User, AuthContextType } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
 
-type AuthContextType = {
-  currentUser: User | null;
-  login: (email: string, password: string, rememberMe: boolean) => Promise<void>;
-  signup: (userData: Omit<User, 'id' | 'bookings' | 'profileComplete'>) => Promise<void>;
-  logout: () => void;
-  completeProfile: (profileData: User['profileData']) => Promise<void>;
-  upgradeToPremium: () => Promise<void>;
-  cancelPremium: () => Promise<void>;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  error: string | null;
-};
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
