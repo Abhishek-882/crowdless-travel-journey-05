@@ -281,6 +281,8 @@ const TripPlanner: React.FC = () => {
         selectedGuides: selectedGuides,
         selectedHotels: selectedHotels,
         selectedTransport: transportPlan,
+        transportType: transportPlan as 'bus' | 'train' | 'flight' | 'car',
+        isPremium: !!currentUser.isPremium,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
         numberOfDays: numberOfDays,

@@ -1,4 +1,3 @@
-
 export type User = {
   id: string;
   email: string;
@@ -121,6 +120,7 @@ export interface TripItineraryDay {
     location?: string;
     notes?: string;
   }[]; // Added for hourly detailed schedule
+  sleepTransport?: boolean; // Added for sleep in transport indication
 }
 
 export type Destination = {

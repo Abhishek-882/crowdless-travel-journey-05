@@ -17,6 +17,7 @@ import { useBookings } from './BookingContext';
 import { useDestinations } from './DestinationContext';
 import { calculateRequiredDays } from '../utils/travelCalculator';
 import { getSuggestedTransport as getTransportSuggestion } from '../utils/tripValidationUtils';
+import { findLastIndex } from '../utils/arrayUtils';
 
 const TripPlanningContext = createContext<TripPlanningContextType | undefined>(undefined);
 
@@ -491,6 +492,7 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
         else {
           const distanceToDestination = calculateDistanceBetweenDestinations(baseHotelDestination, destination);
           const travelTime = distanceToDestination / transportSpeeds[options.transportType];
+          const estimatedHoursAtDestination = 8 - (travelTime * 2); // Calculate available hours at destination
           
           const departureTime = '07:00';
           const arrivalTime = formatTime(7 + travelTime);
@@ -498,9 +500,9 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
           const returnArrivalTime = '19:00';
           
           const detailedSchedule = [
-            { time: departureTime, activity: `Depart from ${baseHotelDestination.name} to ${destination.name}`, notes: `${Math.round(distanceToDestination)}km - ${formatDuration(travelTime)}` },
-            ...generateDetailedSchedule(destination, hoursAtDestination < 4 ? 'quick-visit' : 'half-day'),
-            { time: returnDepartureTime, activity: `Return to ${baseHotelDestination.name}`, notes: `${Math.round(distanceToDestination)}km - ${formatDuration(travelTime)}` }
+            { time: departureTime, activity: `Depart from ${baseHotelDestination.name} to ${destination.name}`, location: baseHotelDestination.name, notes: `${Math.round(distanceToDestination)}km - ${formatDuration(travelTime)}` },
+            ...generateDetailedSchedule(destination, estimatedHoursAtDestination < 4 ? 'quick-visit' : 'half-day'),
+            { time: returnDepartureTime, activity: `Return to ${baseHotelDestination.name}`, location: destination.name, notes: `${Math.round(distanceToDestination)}km - ${formatDuration(travelTime)}` }
           ];
           
           itinerary.push({
@@ -567,7 +569,7 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 
                 const eveningSchedule = [
                   { time: '18:00', activity: 'Dinner before departure', location: `Restaurant near ${destination.name}` },
-                  { time: departureTime, activity: `Board ${options.transportType} to ${nextDest.name}`, notes: `${Math.round(distanceKm)}km journey` }
+                  { time: departureTime, activity: `Board ${options.transportType} to ${nextDest.name}`, location: `${options.transportType} station`, notes: `${Math.round(distanceKm)}km journey` }
                 ];
                 
                 const detailedSchedule = [...morningSchedule, ...eveningSchedule];
@@ -584,9 +586,7 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
                   isTransitDay: true,
                   departureTime,
                   transportDetails,
-                  freshUpStops,
-                  detailedSchedule,
-                  sleepTransport: true
+                  freshUpStops
                 });
                 
                 currentDate.setDate(currentDate.getDate() + 1);
@@ -595,7 +595,7 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 
                 if (day <= options.numberOfDays) {
                   const arrivalSchedule = [
-                    { time: arrivalTime, activity: `Arrive at ${nextDest.name}`, notes: 'After overnight journey' },
+                    { time: arrivalTime, activity: `Arrive at ${nextDest.name}`, location: `${options.transportType} station`, notes: 'After overnight journey' },
                     { time: formatTime(parseHours(arrivalTime) + 1), activity: 'Freshen up and breakfast', location: `Café near ${nextDest.name}` }
                   ];
                   
@@ -633,25 +633,26 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 
                 const detailedSchedule = [
                   { time: '07:00', activity: 'Breakfast and check-out', location: `Hotel in ${destination.name}` },
-                  { time: departureTime, activity: `Depart for ${nextDest.name}`, notes: `${Math.round(distanceKm)}km journey` }
+                  { time: departureTime, activity: `Depart for ${nextDest.name}`, location: `${destination.name}`, notes: `${Math.round(distanceKm)}km journey` }
                 ];
                 
                 if (freshUpStops) {
                   detailedSchedule.push({
                     time: freshUpStops[0].time, 
                     activity: 'Rest stop', 
-                    location: freshUpStops[0].location
+                    location: freshUpStops[0].location,
+                    notes: 'Short break during journey'
                   });
                 }
                 
                 detailedSchedule.push(
-                  { time: arrivalTime, activity: `Arrive at ${nextDest.name}` },
+                  { time: arrivalTime, activity: `Arrive at ${nextDest.name}`, location: nextDest.name, notes: 'End of journey' },
                   { time: formatTime(parseHours(arrivalTime) + 1), activity: 'Check-in and settle in', location: `Hotel in ${nextDest.name}` }
                 );
                 
                 if (parseHours(arrivalTime) <= 15) {
                   detailedSchedule.push(
-                    { time: formatTime(parseHours(arrivalTime) + 2), activity: `Brief orientation walk around ${nextDest.name}` }
+                    { time: formatTime(parseHours(arrivalTime) + 2), activity: `Brief orientation walk around ${nextDest.name}`, location: nextDest.name }
                   );
                 }
                 
@@ -681,8 +682,8 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
               
               const afternoonSchedule = [
                 { time: '13:00', activity: 'Check-out and lunch', location: `Restaurant in ${destination.name}` },
-                { time: departureTime, activity: `Depart for ${nextDest.name}`, notes: `${Math.round(distanceKm)}km journey` },
-                { time: arrivalTime, activity: `Arrive at ${nextDest.name}` },
+                { time: departureTime, activity: `Depart for ${nextDest.name}`, location: destination.name, notes: `${Math.round(distanceKm)}km journey` },
+                { time: arrivalTime, activity: `Arrive at ${nextDest.name}`, location: nextDest.name },
                 { time: formatTime(parseHours(arrivalTime) + 0.5), activity: 'Check-in to accommodation', location: `Hotel in ${nextDest.name}` }
               ];
               
