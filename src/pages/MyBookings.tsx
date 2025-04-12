@@ -5,11 +5,32 @@ import { useAuth } from '../context/AuthContext';
 import { useBookings } from '../context/BookingContext';
 import { useDestinations } from '../context/DestinationContext';
 import { useTripPlanning } from '../context/TripPlanningContext';
+import { findLastIndex } from '../utils/arrayUtils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, MapPin, Users, Clock, Landmark, ArrowRight, Camera, Image, Hotel, Sun, Moon } from 'lucide-react';
+import { 
+  Calendar, 
+  MapPin, 
+  Users, 
+  Clock, 
+  Landmark, 
+  ArrowRight, 
+  Camera, 
+  Image, 
+  Hotel, 
+  Sun, 
+  Moon,
+  Map,
+  Bus,
+  Train,
+  Car,
+  Plane,
+  Bed,
+  Coffee,
+  Utensils
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { formatPrice } from '../utils/helpers';
 import TripItinerary from '../components/TripItinerary';
@@ -67,13 +88,22 @@ const MyBookings: React.FC = () => {
   // Show photo gallery for a trip
   const handleShowPhotos = (trip: TripPlan) => {
     // If the trip has photos, show them
-    // Otherwise, show some default photos
-    setSelectedTripPhotos(trip.photos || [
-      'https://images.unsplash.com/photo-1582562124811-c09040d0a901',
-      'https://images.unsplash.com/photo-1472396961693-142e6e269027',
-      'https://images.unsplash.com/photo-1500375592092-40eb2168fd21',
-      'https://images.unsplash.com/photo-1466442929976-97f336a657be'
-    ]);
+    // Otherwise, show some default photos based on the destinations
+    const destinationImages = trip.selectedDestinations.map(id => {
+      const destination = getDestinationById(id);
+      return destination?.image;
+    }).filter(Boolean) as string[];
+    
+    setSelectedTripPhotos(trip.photos || 
+      destinationImages.length > 0 ? 
+      destinationImages :
+      [
+        'https://images.unsplash.com/photo-1582562124811-c09040d0a901',
+        'https://images.unsplash.com/photo-1472396961693-142e6e269027',
+        'https://images.unsplash.com/photo-1500375592092-40eb2168fd21',
+        'https://images.unsplash.com/photo-1466442929976-97f336a657be'
+      ]
+    );
     setShowPhotoGallery(true);
   };
 
@@ -88,13 +118,77 @@ const MyBookings: React.FC = () => {
   const tripItinerary = selectedTrip ? 
     (selectedTrip.itinerary || generateOptimalItinerary({
       destinationIds: selectedTrip.selectedDestinations,
-      transportType: selectedTrip.transportType || 'car',
+      transportType: selectedTrip.transportType,
       numberOfDays: selectedTrip.numberOfDays,
-      startDate: new Date(selectedTrip.startDate)
+      startDate: new Date(selectedTrip.startDate),
+      travelStyle: selectedTrip.travelStyle
     })) : [];
+
+  // Get the transport icon based on type
+  const getTransportIcon = (type: 'bus' | 'train' | 'flight' | 'car') => {
+    switch (type) {
+      case 'bus': return <Bus className="h-4 w-4 mr-1" />;
+      case 'train': return <Train className="h-4 w-4 mr-1" />;
+      case 'flight': return <Plane className="h-4 w-4 mr-1" />;
+      case 'car': return <Car className="h-4 w-4 mr-1" />;
+      default: return <Map className="h-4 w-4 mr-1" />;
+    }
+  };
 
   // Determine if the user has premium features
   const hasPremium = currentUser?.isPremium || false;
+
+  // Format travel style display
+  const formatTravelStyle = (trip: TripPlan) => {
+    if (trip.travelStyle === 'base-hotel') {
+      return (
+        <div className="flex items-center">
+          <Hotel className={`h-4 w-4 mr-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`} />
+          <span className="text-sm">Base hotel style: {trip.baseHotel || findCentralDestination(trip)}</span>
+        </div>
+      );
+    } else if (trip.sleepTransport) {
+      return (
+        <div className="flex items-center">
+          <Bed className={`h-4 w-4 mr-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`} />
+          <span className="text-sm">Overnight transport included</span>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // Find the central/base destination for a trip
+  const findCentralDestination = (trip: TripPlan) => {
+    if (trip.baseHotel) return trip.baseHotel;
+    
+    const destinations = trip.selectedDestinations.map(id => getDestinationById(id)).filter(Boolean);
+    if (destinations.length <= 0) return "Unknown location";
+    
+    return destinations[0]?.name || "Main destination";
+  };
+
+  // Determine itinerary highlight (first and last days)
+  const getItineraryHighlight = (trip: TripPlan) => {
+    if (!trip.itinerary || trip.itinerary.length === 0) return null;
+    
+    const firstDay = trip.itinerary[0];
+    const lastIndex = findLastIndex(trip.itinerary, (day) => !day.isTransitDay);
+    const lastDay = lastIndex !== -1 ? trip.itinerary[lastIndex] : trip.itinerary[trip.itinerary.length - 1];
+    
+    return (
+      <div className={`space-y-1 text-xs ${isDarkMode ? 'text-gray-300' : ''}`}>
+        <div className="flex">
+          <span className={`font-medium mr-2 ${isDarkMode ? 'text-gray-200' : ''}`}>Start:</span>
+          <span>{firstDay.destinationName}</span>
+        </div>
+        <div className="flex">
+          <span className={`font-medium mr-2 ${isDarkMode ? 'text-gray-200' : ''}`}>End:</span>
+          <span>{lastDay.destinationName}</span>
+        </div>
+      </div>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -227,10 +321,6 @@ const MyBookings: React.FC = () => {
                       getDestinationById(id)
                     ).filter(Boolean);
                     
-                    // Safe transport type access
-                    const transportType = trip.transportType || 'car';
-                    const isPremium = trip.isPremium || false;
-                    
                     return (
                       <Card key={trip.id} className={`overflow-hidden ${isDarkMode ? 'bg-gray-800 border-gray-700' : ''}`}>
                         {destinations.length > 0 && (
@@ -246,16 +336,20 @@ const MyBookings: React.FC = () => {
                               </div>
                               
                               <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} space-y-1 mt-2`}>
-                                <div className="font-medium">Destinations:</div>
-                                {destinations.map((dest, index) => (
-                                  <div key={dest?.id} className="flex items-center ml-1">
-                                    <MapPin className="h-3 w-3 mr-1" />
-                                    <span>{dest?.name}, {dest?.state}</span>
-                                    {index < destinations.length - 1 && (
-                                      <span className="mx-1">→</span>
-                                    )}
-                                  </div>
-                                ))}
+                                <div className="font-medium">Route:</div>
+                                <div className="flex flex-wrap items-center gap-1">
+                                  {destinations.map((dest, index) => (
+                                    <React.Fragment key={dest?.id}>
+                                      <span className="inline-flex items-center">
+                                        <MapPin className="h-3 w-3 mr-1" />
+                                        {dest?.name}
+                                      </span>
+                                      {index < destinations.length - 1 && (
+                                        <ArrowRight className="h-3 w-3 mx-1" />
+                                      )}
+                                    </React.Fragment>
+                                  ))}
+                                </div>
                               </div>
                             </CardHeader>
                             
@@ -277,12 +371,12 @@ const MyBookings: React.FC = () => {
                                 <span className="text-sm">{trip.numberOfDays} days</span>
                               </div>
                               
-                              {trip.baseHotel && (
-                                <div className="flex items-center">
-                                  <Hotel className={`h-4 w-4 mr-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`} />
-                                  <span className="text-sm">Base Hotel: {trip.baseHotel}</span>
-                                </div>
-                              )}
+                              <div className="flex items-center">
+                                {getTransportIcon(trip.transportType)}
+                                <span className="text-sm capitalize">{trip.transportType} travel</span>
+                              </div>
+                              
+                              {formatTravelStyle(trip)}
                               
                               {trip.selectedHotels && trip.selectedHotels.length > 0 && (
                                 <div className="flex items-center">
@@ -300,22 +394,28 @@ const MyBookings: React.FC = () => {
                               
                               {trip.itinerary && (
                                 <div className={`border-t mt-3 pt-3 ${isDarkMode ? 'border-gray-700' : ''}`}>
-                                  <p className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-white' : ''}`}>Itinerary Preview:</p>
-                                  <div className="space-y-1 text-xs">
-                                    {trip.itinerary.slice(0, 2).map((day) => (
-                                      <div key={day.day} className="flex">
-                                        <span className={`font-medium mr-2 ${isDarkMode ? 'text-white' : ''}`}>Day {day.day}:</span>
-                                        <span className={isDarkMode ? 'text-gray-300' : ''}>{day.destinationName} {day.isTransitDay ? 
-                                          <Badge variant="outline" className={`text-[10px] ml-1 py-0 px-1 h-4 ${isDarkMode ? 'bg-blue-900 text-blue-200 border-blue-800' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
-                                            Transit
-                                          </Badge> : ""}</span>
-                                      </div>
-                                    ))}
-                                    {trip.itinerary.length > 2 && (
-                                      <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                                        + {trip.itinerary.length - 2} more days...
-                                      </div>
-                                    )}
+                                  <p className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-white' : ''}`}>Trip Summary:</p>
+                                  {getItineraryHighlight(trip)}
+                                  
+                                  <div className="mt-2">
+                                    <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Highlights:</p>
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {trip.itinerary.some(day => day.isTransitDay) && (
+                                        <Badge variant="outline" className={`text-[10px] h-5 ${isDarkMode ? 'bg-blue-900/30 text-blue-200 border-blue-800' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
+                                          Transit included
+                                        </Badge>
+                                      )}
+                                      {trip.sleepTransport && (
+                                        <Badge variant="outline" className={`text-[10px] h-5 ${isDarkMode ? 'bg-purple-900/30 text-purple-200 border-purple-800' : 'bg-purple-50 text-purple-700 border-purple-200'}`}>
+                                          Overnight travel
+                                        </Badge>
+                                      )}
+                                      {trip.isPremium && (
+                                        <Badge variant="outline" className={`text-[10px] h-5 ${isDarkMode ? 'bg-amber-900/30 text-amber-200 border-amber-800' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                                          Premium perks
+                                        </Badge>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               )}
@@ -338,24 +438,30 @@ const MyBookings: React.FC = () => {
                                     <DialogTitle className={isDarkMode ? 'text-white' : ''}>Your Complete Trip Itinerary</DialogTitle>
                                     <DialogDescription className={isDarkMode ? 'text-gray-300' : ''}>
                                       {format(new Date(trip.startDate), 'PPP')} to {format(new Date(trip.endDate), 'PPP')}
-                                      <div className="flex items-center gap-2 mt-2">
+                                      <div className="flex flex-wrap items-center gap-2 mt-2">
                                         <Badge variant="outline" className={isDarkMode ? 'bg-gray-700 text-white border-gray-600' : 'bg-slate-50'}>
                                           {trip.numberOfDays} days
                                         </Badge>
                                         <Badge variant="outline" className={isDarkMode ? 'bg-gray-700 text-white border-gray-600' : 'bg-slate-50'}>
                                           {trip.selectedDestinations.length} destinations
                                         </Badge>
-                                        <Badge variant="outline" className={`capitalize ${isDarkMode ? 'bg-gray-700 text-white border-gray-600' : 'bg-slate-50'}`}>
-                                          {transportType} travel
+                                        <Badge variant="outline" className={`capitalize flex items-center ${isDarkMode ? 'bg-gray-700 text-white border-gray-600' : 'bg-slate-50'}`}>
+                                          {getTransportIcon(trip.transportType)}
+                                          {trip.transportType} travel
                                         </Badge>
+                                        {trip.isPremium && (
+                                          <Badge variant="outline" className={`bg-amber-500/20 text-amber-600 border-amber-200 ${isDarkMode ? 'text-amber-300 border-amber-900' : ''}`}>
+                                            Premium
+                                          </Badge>
+                                        )}
                                       </div>
                                     </DialogDescription>
                                   </DialogHeader>
                                   <div className="mt-4">
                                     <TripItinerary 
                                       itinerary={tripItinerary} 
-                                      transportType={transportType} 
-                                      isPremium={isPremium} 
+                                      transportType={trip.transportType} 
+                                      isPremium={trip.isPremium} 
                                     />
                                   </div>
                                 </DialogContent>

@@ -1,3 +1,4 @@
+
 export type User = {
   id: string;
   email: string;
@@ -77,8 +78,8 @@ export interface TripPlan {
   selectedGuides: string[];
   selectedHotels: string[];
   selectedTransport: string;
-  transportType?: 'bus' | 'train' | 'flight' | 'car'; // Added for explicit transport type
-  isPremium?: boolean; // Added to indicate premium trip features
+  transportType: 'bus' | 'train' | 'flight' | 'car'; // Changed from optional to required
+  isPremium: boolean; // Changed from optional to required
   startDate: string;
   endDate: string;
   numberOfDays: number;
@@ -95,6 +96,7 @@ export interface TripPlan {
   photos?: string[]; // Added for trip photo gallery
   baseHotel?: string; // Added to support base hotel concept
   sleepTransport?: boolean; // Added to indicate if sleeping in transport
+  travelStyle?: 'base-hotel' | 'mobile'; // Added to indicate travel style
 }
 
 export interface TripItineraryDay {
@@ -113,6 +115,12 @@ export interface TripItineraryDay {
     duration: string;
     amenities: string[];
   }; // Added for detailed transport information
+  detailedSchedule?: {
+    time: string;
+    activity: string;
+    location?: string;
+    notes?: string;
+  }[]; // Added for hourly detailed schedule
 }
 
 export type Destination = {
@@ -230,6 +238,7 @@ export type TripPlanningContextType = {
     transportType: 'bus' | 'train' | 'flight' | 'car';
     numberOfDays: number;
     startDate: Date;
+    travelStyle?: 'base-hotel' | 'mobile';
   }) => TripItineraryDay[];
   getDistanceMatrix: (destinationIds: string[]) => {
     fromId: string;
