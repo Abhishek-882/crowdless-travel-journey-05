@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { Bus, Train, Plane, Car, ArrowRight, Info, MapPin, Hotel, Clock, AlertTriangle, Coffee } from 'lucide-react';
@@ -65,8 +64,6 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
         };
     }
   };
-
-  const travelDetails = calculateTravelDetails(transportType);
 
   // Toggle day details expansion
   const toggleDayExpansion = (day: number) => {
@@ -143,6 +140,32 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
     return null;
   };
 
+  // Extract crowd data from detailed schedule (for premium users)
+  const extractCrowdData = (detailedSchedule?: { time: string; activity: string; location?: string; notes?: string }[]) => {
+    if (!detailedSchedule) return null;
+    
+    const crowdNotes = detailedSchedule
+      .filter(item => item.notes && item.notes.includes('crowd'))
+      .map(item => item.notes);
+    
+    if (crowdNotes.length === 0) return null;
+    
+    // Return the first note that contains crowd data
+    const crowdNote = crowdNotes[0];
+    if (!crowdNote) return null;
+    
+    // Extract time and percentage from format like "Best time: 10:30 AM (45% crowd)"
+    const match = crowdNote.match(/Best time: ([0-9:]+\s?[APM]+) \(([0-9]+)% crowd\)/i);
+    if (match && match.length >= 3) {
+      return {
+        time: match[1],
+        percentage: parseInt(match[2], 10)
+      };
+    }
+    
+    return null;
+  };
+
   if (!itinerary || itinerary.length === 0) {
     return (
       <div className="text-center py-8">
@@ -214,6 +237,8 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
       lastDaysByDestination[day.destinationId] = itinerary[nextDifferentDestIndex].day;
     }
   });
+
+  const travelDetails = calculateTravelDetails(transportType);
 
   return (
     <div className="space-y-6">
@@ -323,23 +348,9 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
         {itinerary.map((day, index) => {
           const isLastDayAtDestination = lastDaysByDestination[day.destinationId] === day.day;
           const nextDest = getNextDestination(index);
-          const specializedActivities = getSpecializedActivities(
-            day.destinationName, 
-            day.day, 
-            isLastDayAtDestination
-          );
           
-          // Transit details
-          const transitDetails = day.isTransitDay ? {
-            from: itinerary[index - 1]?.destinationName || 'Previous location',
-            to: day.destinationName,
-            departureTime: day.departureTime || '8:00 AM',
-            arrivalTime: day.arrivalTime || '4:00 PM',
-            restStops: day.freshUpStops || [
-              { time: '10:30 AM', location: 'Coffee break' },
-              { time: '1:00 PM', location: 'Lunch stop' }
-            ]
-          } : null;
+          // Extract crowd data for premium users
+          const crowdData = isPremium ? extractCrowdData(day.detailedSchedule) : null;
           
           return (
             <Card 
@@ -390,7 +401,7 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
                               <div>
                                 <p className="font-medium">Transit Journey</p>
                                 <p className="text-sm text-gray-500">
-                                  {transitDetails?.from} to {transitDetails?.to}
+                                  {day.destinationName}
                                 </p>
                               </div>
                             </div>
@@ -405,11 +416,11 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
                                 <MapPin className="h-3 w-3 text-green-600" />
                               </div>
                               <p className="text-sm">
-                                <span className="font-medium">{transitDetails?.departureTime}:</span> Depart from {transitDetails?.from}
+                                <span className="font-medium">Departure:</span> {day.departureTime}
                               </p>
                             </div>
                             
-                            {transitDetails?.restStops.map((stop, i) => (
+                            {day.freshUpStops?.map((stop, i) => (
                               <div key={i} className="relative">
                                 <div className="absolute -left-[31px] top-0 h-6 w-6 rounded-full bg-amber-100 flex items-center justify-center">
                                   <Coffee className="h-3 w-3 text-amber-600" />
@@ -425,7 +436,7 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
                                 <MapPin className="h-3 w-3 text-red-600" />
                               </div>
                               <p className="text-sm">
-                                <span className="font-medium">{transitDetails?.arrivalTime}:</span> Arrive at {transitDetails?.to}
+                                <span className="font-medium">Arrival:</span> {day.arrivalTime}
                               </p>
                             </div>
                           </div>
@@ -448,10 +459,10 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
                         <ul className="space-y-2 text-sm">
                           {isPremium ? (
                             // Premium users get detailed hourly schedule
-                            specializedActivities.map((activity, i) => (
+                            day.detailedSchedule?.map((item, i) => (
                               <li key={i} className="flex items-start">
-                                <span className="text-gray-500 min-w-[80px]">{activity.split(':')[0]}:</span>
-                                <span>{activity.split(':').slice(1).join(':').trim()}</span>
+                                <span className="text-gray-500 min-w-[80px]">{item.time}:</span>
+                                <span>{item.activity}</span>
                               </li>
                             ))
                           ) : (
@@ -464,6 +475,15 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
                             ))
                           )}
                         </ul>
+                        
+                        {isPremium && crowdData && (
+                          <div className="bg-amber-50 border border-amber-200 p-3 rounded-md">
+                            <p className="text-sm font-medium text-amber-800">Premium Insights:</p>
+                            <p className="text-xs text-amber-700 mt-1">
+                              Least crowds at {crowdData.time} ({crowdData.percentage}% crowd)
+                            </p>
+                          </div>
+                        )}
                         
                         {isLastDayAtDestination && nextDest && (
                           <div className="bg-blue-50 border border-blue-200 p-3 rounded-md mt-3">

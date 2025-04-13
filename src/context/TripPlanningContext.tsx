@@ -427,82 +427,218 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const travelStyle = options.travelStyle || 'mobile';
     let baseHotelDestination: Destination | null = null;
     
-    if (travelStyle === 'base-hotel' && selectedDestinations.length > 1) {
-      let minTotalDistance = Infinity;
-      let centralDestIndex = 0;
-      
-      for (let i = 0; i < selectedDestinations.length; i++) {
-        let totalDist = 0;
-        for (let j = 0; j < selectedDestinations.length; j++) {
-          if (i !== j) {
-            totalDist += calculateDistanceBetweenDestinations(
-              selectedDestinations[i], 
-              selectedDestinations[j]
-            );
-          }
-        }
-        if (totalDist < minTotalDistance) {
-          minTotalDistance = totalDist;
-          centralDestIndex = i;
-        }
-      }
-      
-      baseHotelDestination = selectedDestinations[centralDestIndex];
+    // Calculate balanced days for each destination
+    const numDestinations = selectedDestinations.length;
+    let availableDays = options.numberOfDays;
+    
+    // We need at least numDestinations-1 travel days between destinations
+    const requiredTravelDays = Math.max(0, numDestinations - 1);
+    
+    // Calculate exploration days available after accounting for travel
+    const explorationDays = Math.max(0, availableDays - requiredTravelDays);
+    
+    // Balanced allocation of days per destination (minimum 1 day per destination)
+    const daysPerDestination = Math.max(1, Math.floor(explorationDays / numDestinations));
+    
+    // Calculate any remaining days to distribute
+    let extraDays = Math.max(0, explorationDays - (daysPerDestination * numDestinations));
+    
+    // Create an array of days to allocate for each destination
+    const daysAllocation = selectedDestinations.map(() => daysPerDestination);
+    
+    // Distribute extra days evenly (one extra day per destination until extraDays runs out)
+    for (let i = 0; i < extraDays && i < daysAllocation.length; i++) {
+      daysAllocation[i]++;
     }
     
-    const needsOvernightTransport = selectedDestinations.some((dest, i) => {
-      if (i < selectedDestinations.length - 1) {
-        const nextDest = selectedDestinations[i + 1];
-        const distanceKm = calculateDistanceBetweenDestinations(dest, nextDest);
-        const travelTime = distanceKm / transportSpeeds[options.transportType];
-        return travelTime > 8;
-      }
-      return false;
-    });
+    // Generate a random attraction time for crowd data
+    const generateRandomTime = () => {
+      const hours = Math.floor(Math.random() * 12) + 6; // 6 AM to 6 PM
+      const minutes = [0, 30][Math.floor(Math.random() * 2)];
+      const period = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
+      return `${displayHours}:${minutes === 0 ? '00' : minutes} ${period}`;
+    };
+    
+    // Generate random crowd percentage (between 10 and 85)
+    const generateRandomCrowd = () => {
+      return Math.floor(Math.random() * 76) + 10;
+    };
     
     if (travelStyle === 'base-hotel' && baseHotelDestination) {
-      const sortedDestinations = [...selectedDestinations].sort((a, b) => {
-        if (a.id === baseHotelDestination!.id) return -1;
-        if (b.id === baseHotelDestination!.id) return 1;
-        
-        const distA = calculateDistanceBetweenDestinations(baseHotelDestination!, a);
-        const distB = calculateDistanceBetweenDestinations(baseHotelDestination!, b);
-        
-        return distA - distB;
-      });
       
-      for (let day = 1; day <= options.numberOfDays; day++) {
-        const destIndex = (day - 1) % sortedDestinations.length;
-        const destination = sortedDestinations[destIndex];
+    } 
+    else {
+      // Mobile travel style (moving from destination to destination)
+      let day = 1;
+      
+      for (let destIndex = 0; destIndex < selectedDestinations.length; destIndex++) {
+        const destination = selectedDestinations[destIndex];
+        const daysAtThisDestination = daysAllocation[destIndex];
         
-        if (destination.id === baseHotelDestination.id) {
-          const detailedSchedule = generateDetailedSchedule(destination, 'full-day');
+        // Add regular exploration days for this destination
+        for (let destDay = 0; destDay < daysAtThisDestination; destDay++) {
+          if (day <= options.numberOfDays) {
+            // Generate unique random crowd data for premium insights
+            const randomTime1 = generateRandomTime();
+            const randomTime2 = generateRandomTime();
+            const randomCrowd1 = generateRandomCrowd();
+            const randomCrowd2 = generateRandomCrowd();
+            
+            // Generate appropriately named activities based on destination
+            const destinationName = destination.name.toLowerCase();
+            let activities = [];
+            
+            if (destinationName.includes('beach')) {
+              activities = ['Beach relaxation', 'Water sports', 'Coastal exploration'];
+            } else if (destinationName.includes('palace') || destinationName.includes('fort')) {
+              activities = ['Architecture tour', 'Heritage exploration', 'Historical sites visit'];
+            } else if (destinationName.includes('temple')) {
+              activities = ['Temple visit', 'Cultural experience', 'Spiritual exploration'];
+            } else if (destinationName.includes('mountain') || destinationName.includes('hill')) {
+              activities = ['Hiking adventure', 'Scenic viewpoints', 'Mountain exploration'];
+            } else {
+              activities = [`Explore ${destination.name}`, 'Local sightseeing', 'Cultural immersion'];
+            }
+            
+            // Generate detailed schedule with varied times
+            const detailedSchedule = [
+              { time: '08:00', activity: 'Breakfast', location: `Hotel in ${destination.name}` },
+              { time: '09:30', activity: activities[0], location: destination.name, notes: `Best time: ${randomTime1} (${randomCrowd1}% crowd)` },
+              { time: '12:30', activity: 'Lunch break', location: `Restaurant in ${destination.name}` },
+              { time: '14:00', activity: activities[1], location: destination.name, notes: `Best time: ${randomTime2} (${randomCrowd2}% crowd)` },
+              { time: '17:00', activity: activities[2], location: destination.name },
+              { time: '19:00', activity: 'Dinner and relaxation', location: `${destination.name} city center` }
+            ];
+            
+            itinerary.push({
+              day,
+              date: new Date(currentDate),
+              destinationId: destination.id,
+              destinationName: destination.name,
+              activities: activities,
+              isTransitDay: false,
+              detailedSchedule: detailedSchedule,
+              hotels: [`Hotel in ${destination.name}`]
+            });
+            
+            day++;
+            currentDate.setDate(currentDate.getDate() + 1);
+          }
+        }
+        
+        // Add transit day if not the last destination
+        if (destIndex < selectedDestinations.length - 1 && day <= options.numberOfDays) {
+          const nextDest = selectedDestinations[destIndex + 1];
+          const distanceKm = calculateDistanceBetweenDestinations(destination, nextDest);
+          const travelTime = distanceKm / transportSpeeds[options.transportType];
+          
+          // Calculate departure and arrival times
+          const departureTime = '09:00';
+          const arrivalTimeHours = 9 + travelTime;
+          const arrivalTime = formatTime(arrivalTimeHours);
+          
+          // Fresh up stops during long journeys
+          const freshUpStops = travelTime > 3 ? [
+            { time: formatTime(9 + travelTime/2), location: 'Rest and refreshment stop' }
+          ] : [];
+          
+          // Generate detailed schedule for transit day
+          const transitSchedule = [
+            { time: '07:00', activity: 'Breakfast and check-out', location: `Hotel in ${destination.name}` },
+            { time: departureTime, activity: `Depart for ${nextDest.name}`, location: destination.name, notes: `${Math.round(distanceKm)}km journey` }
+          ];
+          
+          // Add rest stop if applicable
+          if (freshUpStops.length > 0) {
+            transitSchedule.push({
+              time: freshUpStops[0].time,
+              activity: 'Rest and refreshment',
+              location: 'En-route stop',
+              notes: 'Quick break during transit'
+            });
+          }
+          
+          // Add arrival activities
+          transitSchedule.push(
+            { time: arrivalTime, activity: `Arrive at ${nextDest.name}`, location: nextDest.name },
+            { time: formatTime(parseHours(arrivalTime) + 1), activity: 'Check-in and settle in', location: `Hotel in ${nextDest.name}` }
+          );
+          
+          // Add evening exploration if arriving before 5 PM
+          if (parseHours(arrivalTime) < 17) {
+            transitSchedule.push({
+              time: '17:30',
+              activity: `Evening orientation of ${nextDest.name}`,
+              location: nextDest.name,
+              notes: 'Brief walk to get familiar with the area'
+            });
+          }
           
           itinerary.push({
             day,
             date: new Date(currentDate),
-            destinationId: destination.id,
-            destinationName: destination.name,
-            activities: detailedSchedule.map(item => item.activity),
-            isTransitDay: false,
-            detailedSchedule,
-            hotels: [baseHotelDestination.name]
+            destinationId: nextDest.id,
+            destinationName: `${destination.name} → ${nextDest.name}`,
+            activities: [
+              `Travel from ${destination.name} to ${nextDest.name}`,
+              `${Math.round(distanceKm)} km journey (approx. ${Math.round(travelTime)} hours)`
+            ],
+            isTransitDay: true,
+            departureTime,
+            arrivalTime,
+            transportDetails: {
+              vehicle: options.transportType,
+              duration: formatDuration(travelTime),
+              amenities: getTransportAmenities(options.transportType)
+            },
+            freshUpStops,
+            detailedSchedule: transitSchedule,
+            hotels: [`Hotel in ${nextDest.name}`]
           });
-        } 
-        else {
-          const distanceToDestination = calculateDistanceBetweenDestinations(baseHotelDestination, destination);
-          const travelTime = distanceToDestination / transportSpeeds[options.transportType];
-          const estimatedHoursAtDestination = 8 - (travelTime * 2); // Calculate available hours at destination
           
-          const departureTime = '07:00';
-          const arrivalTime = formatTime(7 + travelTime);
-          const returnDepartureTime = formatTime(18 - travelTime);
-          const returnArrivalTime = '19:00';
+          day++;
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+      }
+      
+      // If we still have days left, distribute them among destinations
+      if (day <= options.numberOfDays) {
+        let extraDestIndex = 0;
+        
+        while (day <= options.numberOfDays) {
+          const destination = selectedDestinations[extraDestIndex % selectedDestinations.length];
           
-          const detailedSchedule = [
-            { time: departureTime, activity: `Depart from ${baseHotelDestination.name} to ${destination.name}`, location: baseHotelDestination.name, notes: `${Math.round(distanceToDestination)}km - ${formatDuration(travelTime)}` },
-            ...generateDetailedSchedule(destination, estimatedHoursAtDestination < 4 ? 'quick-visit' : 'half-day'),
-            { time: returnDepartureTime, activity: `Return to ${baseHotelDestination.name}`, location: destination.name, notes: `${Math.round(distanceToDestination)}km - ${formatDuration(travelTime)}` }
+          // Generate different random crowd data for additional days
+          const randomTime1 = generateRandomTime();
+          const randomTime2 = generateRandomTime();
+          const randomCrowd1 = generateRandomCrowd();
+          const randomCrowd2 = generateRandomCrowd();
+          
+          // Generate different activities for additional days
+          const destinationName = destination.name.toLowerCase();
+          let extraActivities = [];
+          
+          if (destinationName.includes('beach')) {
+            extraActivities = ['Sunset beach walk', 'Local seafood tasting', 'Beachside relaxation'];
+          } else if (destinationName.includes('palace') || destinationName.includes('fort')) {
+            extraActivities = ['Museum visit', 'Artisan workshops', 'Local markets exploration'];
+          } else if (destinationName.includes('temple')) {
+            extraActivities = ['Meditation session', 'Local traditions experience', 'Cultural performances'];
+          } else if (destinationName.includes('mountain') || destinationName.includes('hill')) {
+            extraActivities = ['Photography tour', 'Local village visit', 'Nature trail'];
+          } else {
+            extraActivities = ['Local cuisine experience', 'Arts and crafts exploration', 'Hidden gems discovery'];
+          }
+          
+          // Create detailed schedule with different timings and activities
+          const extraSchedule = [
+            { time: '08:30', activity: 'Breakfast', location: `Hotel in ${destination.name}` },
+            { time: '10:00', activity: extraActivities[0], location: destination.name, notes: `Best time: ${randomTime1} (${randomCrowd1}% crowd)` },
+            { time: '13:00', activity: 'Lunch at a local restaurant', location: `Restaurant in ${destination.name}` },
+            { time: '15:00', activity: extraActivities[1], location: destination.name, notes: `Best time: ${randomTime2} (${randomCrowd2}% crowd)` },
+            { time: '18:00', activity: extraActivities[2], location: destination.name },
+            { time: '20:00', activity: 'Dinner experience', location: `${destination.name} city center` }
           ];
           
           itinerary.push({
@@ -510,271 +646,16 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
             date: new Date(currentDate),
             destinationId: destination.id,
             destinationName: destination.name,
-            activities: [`Day trip to ${destination.name}`, `Return to ${baseHotelDestination.name} in evening`],
+            activities: extraActivities,
             isTransitDay: false,
-            departureTime,
-            arrivalTime,
-            detailedSchedule,
-            hotels: [baseHotelDestination.name],
-            transportDetails: {
-              vehicle: options.transportType,
-              duration: formatDuration(travelTime),
-              amenities: getTransportAmenities(options.transportType)
-            }
-          });
-        }
-        
-        currentDate.setDate(currentDate.getDate() + 1);
-      }
-    } 
-    else {
-      let currentDestIndex = 0;
-      
-      for (let day = 1; day <= options.numberOfDays; day++) {
-        if (currentDestIndex < selectedDestinations.length) {
-          const destination = selectedDestinations[currentDestIndex];
-          
-          const isLastDay = day === options.numberOfDays;
-          const hasNextDestination = currentDestIndex < selectedDestinations.length - 1;
-          
-          if (hasNextDestination) {
-            const nextDest = selectedDestinations[currentDestIndex + 1];
-            const distanceKm = calculateDistanceBetweenDestinations(destination, nextDest);
-            const travelTime = distanceKm / transportSpeeds[options.transportType];
-            
-            if (travelTime > 4 && !isLastDay) {
-              if (travelTime > 8 && (options.transportType === 'train' || options.transportType === 'bus')) {
-                let departureTime = '20:00';
-                let arrivalTime = formatTime(20 + travelTime);
-                
-                if (parseHours(arrivalTime) >= 24) {
-                  arrivalTime = formatTime(parseHours(arrivalTime) - 24);
-                }
-                
-                const freshUpStops = [
-                  { time: '22:00', location: 'Onboard refreshments' }
-                ];
-                
-                if (travelTime > 10) {
-                  freshUpStops.push({ time: '06:00', location: 'Morning refreshment stop' });
-                }
-                
-                const transportDetails = {
-                  vehicle: options.transportType,
-                  duration: formatDuration(travelTime),
-                  amenities: getTransportAmenities(options.transportType, true)
-                };
-                
-                const morningSchedule = generateDetailedSchedule(destination, 'morning');
-                
-                const eveningSchedule = [
-                  { time: '18:00', activity: 'Dinner before departure', location: `Restaurant near ${destination.name}` },
-                  { time: departureTime, activity: `Board ${options.transportType} to ${nextDest.name}`, location: `${options.transportType} station`, notes: `${Math.round(distanceKm)}km journey` }
-                ];
-                
-                const detailedSchedule = [...morningSchedule, ...eveningSchedule];
-                
-                itinerary.push({
-                  day,
-                  date: new Date(currentDate),
-                  destinationId: destination.id,
-                  destinationName: destination.name,
-                  activities: [
-                    `Morning exploration in ${destination.name}`,
-                    `Evening departure to ${nextDest.name}`
-                  ],
-                  isTransitDay: true,
-                  departureTime,
-                  transportDetails,
-                  freshUpStops
-                });
-                
-                currentDate.setDate(currentDate.getDate() + 1);
-                day++;
-                currentDestIndex++;
-                
-                if (day <= options.numberOfDays) {
-                  const arrivalSchedule = [
-                    { time: arrivalTime, activity: `Arrive at ${nextDest.name}`, location: `${options.transportType} station`, notes: 'After overnight journey' },
-                    { time: formatTime(parseHours(arrivalTime) + 1), activity: 'Freshen up and breakfast', location: `Café near ${nextDest.name}` }
-                  ];
-                  
-                  const afternoonSchedule = generateDetailedSchedule(nextDest, 'afternoon');
-                  
-                  itinerary.push({
-                    day,
-                    date: new Date(currentDate),
-                    destinationId: nextDest.id,
-                    destinationName: nextDest.name,
-                    activities: [
-                      `Arrive in ${nextDest.name}`,
-                      `Afternoon exploration of ${nextDest.name}`
-                    ],
-                    isTransitDay: false,
-                    arrivalTime,
-                    detailedSchedule: [...arrivalSchedule, ...afternoonSchedule],
-                    hotels: [`Hotel in ${nextDest.name}`]
-                  });
-                }
-              } 
-              else {
-                const departureTime = '09:00';
-                const arrivalTime = formatTime(9 + travelTime);
-                
-                const freshUpStops = travelTime > 3 ? [
-                  { time: formatTime(9 + travelTime/2), location: 'Rest and refreshment stop' }
-                ] : undefined;
-                
-                const transportDetails = {
-                  vehicle: options.transportType,
-                  duration: formatDuration(travelTime),
-                  amenities: getTransportAmenities(options.transportType)
-                };
-                
-                const detailedSchedule = [
-                  { time: '07:00', activity: 'Breakfast and check-out', location: `Hotel in ${destination.name}` },
-                  { time: departureTime, activity: `Depart for ${nextDest.name}`, location: `${destination.name}`, notes: `${Math.round(distanceKm)}km journey` }
-                ];
-                
-                if (freshUpStops) {
-                  detailedSchedule.push({
-                    time: freshUpStops[0].time, 
-                    activity: 'Rest stop', 
-                    location: freshUpStops[0].location,
-                    notes: 'Short break during journey'
-                  });
-                }
-                
-                detailedSchedule.push(
-                  { time: arrivalTime, activity: `Arrive at ${nextDest.name}`, location: nextDest.name, notes: 'End of journey' },
-                  { time: formatTime(parseHours(arrivalTime) + 1), activity: 'Check-in and settle in', location: `Hotel in ${nextDest.name}` }
-                );
-                
-                if (parseHours(arrivalTime) <= 15) {
-                  detailedSchedule.push(
-                    { time: formatTime(parseHours(arrivalTime) + 2), activity: `Brief orientation walk around ${nextDest.name}`, location: nextDest.name }
-                  );
-                }
-                
-                itinerary.push({
-                  day,
-                  date: new Date(currentDate),
-                  destinationId: nextDest.id,
-                  destinationName: nextDest.name,
-                  activities: [`Travel from ${destination.name} to ${nextDest.name} (${Math.round(distanceKm)} km, ~${Math.round(travelTime)} hours)`],
-                  isTransitDay: true,
-                  departureTime,
-                  arrivalTime,
-                  transportDetails,
-                  freshUpStops,
-                  detailedSchedule,
-                  hotels: [`Hotel in ${nextDest.name}`]
-                });
-                
-                currentDestIndex++;
-              }
-            } 
-            else if (!isLastDay) {
-              const morningSchedule = generateDetailedSchedule(destination, 'morning');
-              
-              const departureTime = '14:00';
-              const arrivalTime = formatTime(14 + travelTime);
-              
-              const afternoonSchedule = [
-                { time: '13:00', activity: 'Check-out and lunch', location: `Restaurant in ${destination.name}` },
-                { time: departureTime, activity: `Depart for ${nextDest.name}`, location: destination.name, notes: `${Math.round(distanceKm)}km journey` },
-                { time: arrivalTime, activity: `Arrive at ${nextDest.name}`, location: nextDest.name },
-                { time: formatTime(parseHours(arrivalTime) + 0.5), activity: 'Check-in to accommodation', location: `Hotel in ${nextDest.name}` }
-              ];
-              
-              const eveningActivities = parseHours(arrivalTime) <= 18 
-                ? generateDetailedSchedule(nextDest, 'evening-short') 
-                : [];
-              
-              const detailedSchedule = [...morningSchedule, ...afternoonSchedule, ...eveningActivities];
-              
-              itinerary.push({
-                day,
-                date: new Date(currentDate),
-                destinationId: destination.id,
-                destinationName: `${destination.name} → ${nextDest.name}`,
-                activities: [
-                  `Morning in ${destination.name}`,
-                  `Afternoon travel to ${nextDest.name} (${Math.round(distanceKm)} km, ~${Math.round(travelTime)} hours)`
-                ],
-                isTransitDay: true,
-                departureTime,
-                arrivalTime,
-                transportDetails: {
-                  vehicle: options.transportType,
-                  duration: formatDuration(travelTime),
-                  amenities: getTransportAmenities(options.transportType)
-                },
-                detailedSchedule,
-                hotels: [`Hotel in ${nextDest.name}`]
-              });
-              
-              currentDestIndex++;
-            } 
-            else {
-              const detailedSchedule = generateDetailedSchedule(destination, 'full-day');
-              
-              itinerary.push({
-                day,
-                date: new Date(currentDate),
-                destinationId: destination.id,
-                destinationName: destination.name,
-                activities: detailedSchedule.map(item => item.activity).slice(0, 3),
-                isTransitDay: false,
-                detailedSchedule,
-                hotels: [`Hotel in ${destination.name}`]
-              });
-            }
-          } 
-          else {
-            const detailedSchedule = generateDetailedSchedule(destination, 'full-day');
-            
-            itinerary.push({
-              day,
-              date: new Date(currentDate),
-              destinationId: destination.id,
-              destinationName: destination.name,
-              activities: detailedSchedule.map(item => item.activity).slice(0, 3),
-              isTransitDay: false,
-              detailedSchedule,
-              hotels: [`Hotel in ${destination.name}`]
-            });
-            
-            if (currentDestIndex === selectedDestinations.length - 1 && day < options.numberOfDays) {
-              currentDestIndex = selectedDestinations.length - 1;
-            } else {
-              currentDestIndex++;
-            }
-          }
-        } 
-        else {
-          const destIndex = day % selectedDestinations.length;
-          const destination = selectedDestinations[destIndex];
-          
-          const detailedSchedule = generateDetailedSchedule(destination, 'full-day', true);
-          
-          itinerary.push({
-            day,
-            date: new Date(currentDate),
-            destinationId: destination.id,
-            destinationName: destination.name,
-            activities: [
-              `More time to explore ${destination.name}`,
-              'Local cuisine tasting',
-              'Shopping for souvenirs'
-            ],
-            isTransitDay: false,
-            detailedSchedule,
+            detailedSchedule: extraSchedule,
             hotels: [`Hotel in ${destination.name}`]
           });
+          
+          day++;
+          currentDate.setDate(currentDate.getDate() + 1);
+          extraDestIndex++;
         }
-        
-        currentDate.setDate(currentDate.getDate() + 1);
       }
     }
     
@@ -918,45 +799,4 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     
     if (wholeHours === 0) {
       return `${minutes}m`;
-    } else if (minutes === 0) {
-      return `${wholeHours}h`;
-    } else {
-      return `${wholeHours}h ${minutes}m`;
-    }
-  };
-
-  return (
-    <TripPlanningContext.Provider
-      value={{
-        hotels,
-        transports,
-        guides,
-        tripPlans,
-        loading,
-        error,
-        getHotelsByDestination,
-        getGuidesByDestination,
-        calculateTripCost,
-        saveTripPlan,
-        getUserTripPlans,
-        getTripPlanById,
-        cancelTripPlan,
-        checkTripFeasibility,
-        generateOptimalItinerary,
-        getDistanceMatrix,
-        getSuggestedTransport,
-        calculateDistanceBetweenDestinations
-      }}
-    >
-      {children}
-    </TripPlanningContext.Provider>
-  );
-};
-
-export const useTripPlanning = () => {
-  const context = useContext(TripPlanningContext);
-  if (context === undefined) {
-    throw new Error('useTripPlanning must be used within a TripPlanningProvider');
-  }
-  return context;
-};
+    } else if (minutes ===
