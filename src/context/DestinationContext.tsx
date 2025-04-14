@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Destination, DestinationContextType, CrowdData, CrowdLevel } from '../types';
 import { useToast } from '@/hooks/use-toast';
@@ -22,33 +21,25 @@ export const DestinationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   
   const { toast } = useToast();
   const { currentUser } = useAuth();
-  const isPremiumUser = !!currentUser?.isPremium;
 
   // Initialize destinations
   useEffect(() => {
     const initDestinations = async () => {
       try {
-        // Check if we already have destinations in localStorage
         const storedDestinations = localStorage.getItem('destinations');
         
         if (storedDestinations) {
-          const parsedDestinations = JSON.parse(storedDestinations) as Destination[];
-          setDestinations(parsedDestinations);
-          setFilteredDestinations(parsedDestinations);
+          setDestinations(JSON.parse(storedDestinations));
         } else {
-          // Use our predefined data
           setDestinations(indiaDestinations);
-          setFilteredDestinations(indiaDestinations);
-          
-          // Store in localStorage for future use
           localStorage.setItem('destinations', JSON.stringify(indiaDestinations));
         }
       } catch (err) {
         console.error('Error initializing destinations:', err);
-        setError('Failed to load destinations. Please refresh the page.');
+        setError('Failed to load destinations');
         toast({
           title: 'Error',
-          description: 'Failed to load destinations. Please refresh the page.',
+          description: 'Failed to load destinations',
           variant: 'destructive',
         });
       } finally {
@@ -64,7 +55,6 @@ export const DestinationProvider: React.FC<{ children: React.ReactNode }> = ({ c
     try {
       let result = [...destinations];
       
-      // Apply search query
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
         result = result.filter((dest) => 
@@ -74,14 +64,12 @@ export const DestinationProvider: React.FC<{ children: React.ReactNode }> = ({ c
         );
       }
       
-      // Apply crowd level filter
       if (filters.crowdLevel) {
         result = result.filter((dest) => 
           getCurrentCrowdLevel(dest.crowdData) === filters.crowdLevel
         );
       }
       
-      // Apply price range filter
       if (filters.minPrice !== null) {
         result = result.filter((dest) => dest.price >= (filters.minPrice || 0));
       }
@@ -90,7 +78,6 @@ export const DestinationProvider: React.FC<{ children: React.ReactNode }> = ({ c
         result = result.filter((dest) => dest.price <= (filters.maxPrice || Infinity));
       }
       
-      // Apply state filter
       if (filters.state) {
         result = result.filter((dest) => 
           dest.state.toLowerCase() === filters.state!.toLowerCase()
@@ -102,19 +89,56 @@ export const DestinationProvider: React.FC<{ children: React.ReactNode }> = ({ c
       console.error('Error applying filters:', err);
       toast({
         title: 'Error',
-        description: 'Failed to apply filters.',
+        description: 'Failed to apply filters',
         variant: 'destructive',
       });
     }
   }, [destinations, searchQuery, filters]);
 
-  // Determine the current crowd level based on time
+  // Get enhanced crowd data with premium features
+  const getEnhancedCrowdData = (destinationId: string, crowdData: CrowdData) => {
+    const hasBooking = currentUser?.bookings?.some(b => b.destinationIds.includes(destinationId));
+    
+    if (!currentUser?.isPremium && !hasBooking) {
+      // Return limited data for free users
+      const limitedData: CrowdData = {};
+      Object.keys(crowdData).forEach(key => {
+        limitedData[key] = Math.round(crowdData[key] / 10) * 10;
+      });
+      return limitedData;
+    }
+
+    // For premium users or those with bookings
+    return {
+      ...crowdData,
+      premiumInsights: hasBooking ? getBookingInsights(destinationId) : null
+    };
+  };
+
+  // Get booking insights for premium users
+  const getBookingInsights = (destinationId: string) => {
+    const destination = destinations.find(d => d.id === destinationId);
+    if (!destination) return null;
+
+    return {
+      bestPhotoSpots: [
+        "Northwest corner at sunrise",
+        "Main courtyard in late afternoon"
+      ],
+      secretEntrances: [
+        "South gate - 40% less crowded in mornings"
+      ],
+      localTips: [
+        `Visit ${destination.name}'s east side for authentic local food`
+      ]
+    };
+  };
+
+  // Determine current crowd level
   const getCurrentCrowdLevel = (crowdData: CrowdData): CrowdLevel => {
     try {
-      // For non-premium users, we show a simulated crowd level
-      // that doesn't change in real-time
-      if (!isPremiumUser) {
-        // Return a static crowd level based on the average
+      // For non-premium users, show simplified crowd level
+      if (!currentUser?.isPremium) {
         const values = Object.values(crowdData);
         const avgCrowd = values.reduce((a, b) => a + b, 0) / values.length;
         
@@ -123,11 +147,10 @@ export const DestinationProvider: React.FC<{ children: React.ReactNode }> = ({ c
         return 'high';
       }
       
-      // For premium users, show real-time crowd data
+      // For premium users, show real-time data
       const currentHour = new Date().getHours();
       const timeKey = `${currentHour.toString().padStart(2, '0')}:00`;
       
-      // Find the closest time key
       const times = Object.keys(crowdData);
       let closestTime = times[0];
       let smallestDiff = 24;
@@ -148,11 +171,11 @@ export const DestinationProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return 'high';
     } catch (err) {
       console.error('Error calculating crowd level:', err);
-      return 'medium'; // Default fallback
+      return 'medium';
     }
   };
 
-  // Get the best time to visit (lowest crowd time)
+  // Get best time to visit
   const getBestTimeToVisit = (crowdData: CrowdData): string => {
     try {
       let bestTime = '';
@@ -165,21 +188,18 @@ export const DestinationProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
       }
       
-      // Format time for display
       const [hour] = bestTime.split(':');
       const hourNum = parseInt(hour, 10);
       return hourNum < 12 ? `${hourNum} AM` : hourNum === 12 ? '12 PM' : `${hourNum - 12} PM`;
     } catch (err) {
       console.error('Error finding best time:', err);
-      return 'Early morning'; // Default fallback
+      return 'Early morning';
     }
   };
 
+  // Other context methods
   const setFilters = (newFilters: Partial<DestinationContextType['filters']>) => {
-    setFiltersState((prev) => ({
-      ...prev,
-      ...newFilters,
-    }));
+    setFiltersState((prev) => ({ ...prev, ...newFilters }));
   };
 
   const clearFilters = () => {
@@ -211,6 +231,7 @@ export const DestinationProvider: React.FC<{ children: React.ReactNode }> = ({ c
         getBestTimeToVisit,
         clearFilters,
         getDestinationById,
+        getEnhancedCrowdData
       }}
     >
       {children}
