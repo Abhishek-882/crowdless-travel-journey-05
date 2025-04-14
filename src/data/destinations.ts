@@ -131,7 +131,7 @@ export const indiaDestinations: Destination[] = [
     city: 'Varanasi',
     state: 'Uttar Pradesh',
     description: 'One of the oldest continuously inhabited cities in the world, Varanasi\'s ghats along the holy Ganges River offer a spiritual experience with daily rituals and ceremonies.',
-    image: 'https://images.unsplash.com/photo-1561361058-c24e021e3f8e?w=800&auto=format&fit=crop',
+    image: 'https://t4.ftcdn.net/jpg/04/08/25/05/360_F_408250543_MVaEVGeWxb4FiFy7mEGKj8nfYkwoAZON.jpg',
     crowdData: {
       '00:00': 15,
       '04:00': 60,
@@ -215,7 +215,7 @@ export const indiaDestinations: Destination[] = [
     city: 'Mysore',
     state: 'Karnataka',
     description: 'A historical palace that showcases Indo-Saracenic architecture, the Mysore Palace is known for its intricate ceilings, sculpted pillars, and the spectacular light show.',
-    image: 'https://images.unsplash.com/photo-1580294647332-8a399cd9621b?w=800&auto=format&fit=crop',
+    image: 'https://images.unsplash.com/photo-1600112356915-089abb8fc71a?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8bXlzb3JlJTIwcGFsYWNlfGVufDB8fDB8fHww',
     crowdData: {
       '00:00': 0,
       '04:00': 0,
