@@ -1,4 +1,3 @@
-
 import { Destination } from '../types';
 
 // Helper function to generate random crowd data
@@ -28,6 +27,19 @@ const generateCrowdData = () => {
   return crowdData;
 };
 
+// Helper function for consistent pricing structure
+const createPrice = (
+  adult: number, 
+  child: number = Math.floor(adult * 0.6), 
+  foreigner: number = adult * 4,
+  includes: string[] = []
+) => ({
+  adult,
+  child,
+  foreigner,
+  includes
+});
+
 export const indiaDestinations: Destination[] = [
   {
     id: 'dest_001',
@@ -35,7 +47,7 @@ export const indiaDestinations: Destination[] = [
     city: 'Agra',
     state: 'Uttar Pradesh',
     description: 'One of the seven wonders of the world, this ivory-white marble mausoleum is a symbol of eternal love built by Emperor Shah Jahan in memory of his wife Mumtaz Mahal.',
-    image: 'https://images.unsplash.com/photo-1564507592333-c60657eea523',
+    image: 'https://images.unsplash.com/photo-1564507592333-c60657eea523?w=800&auto=format&fit=crop',
     crowdData: {
       '00:00': 5,
       '04:00': 10,
@@ -48,13 +60,14 @@ export const indiaDestinations: Destination[] = [
       '20:00': 20,
       '22:00': 10
     },
-    price: 1500,
+    price: createPrice(1100, 600, 2000, ['Main mausoleum', 'Gardens', 'Mosque']),
     rating: 4.8,
     coordinates: {
       lat: 27.1751,
       lng: 78.0421
     },
-    bestTimeToVisit: 'Early Morning'
+    bestTimeToVisit: 'Early Morning',
+    tags: ['UNESCO', 'Historical', 'Architecture']
   },
   {
     id: 'dest_002',
@@ -62,7 +75,7 @@ export const indiaDestinations: Destination[] = [
     city: 'Jaipur',
     state: 'Rajasthan',
     description: 'A magnificent blend of Rajasthani and Mughal architecture, the City Palace is a historic royal residence that houses museums with an impressive collection of artifacts.',
-    image: 'https://images.unsplash.com/photo-1599661046289-e31897846e41',
+    image: 'https://images.unsplash.com/photo-1599661046289-e31897846e41?w=800&auto=format&fit=crop',
     crowdData: {
       '00:00': 0,
       '04:00': 5,
@@ -75,13 +88,14 @@ export const indiaDestinations: Destination[] = [
       '20:00': 15,
       '22:00': 5
     },
-    price: 1200,
+    price: createPrice(700, 400, 1500, ['Palace complex', 'Museum', 'Audio guide']),
     rating: 4.5,
     coordinates: {
       lat: 26.9258,
       lng: 75.8237
     },
-    bestTimeToVisit: 'Morning'
+    bestTimeToVisit: 'Morning',
+    tags: ['Historical', 'Museum', 'Architecture']
   },
   {
     id: 'dest_003',
@@ -89,7 +103,7 @@ export const indiaDestinations: Destination[] = [
     city: 'Panaji',
     state: 'Goa',
     description: 'Famous for its pristine beaches, Goa offers a perfect blend of Indian and Portuguese cultures with its white sandy shores, vibrant nightlife, and delicious seafood.',
-    image: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2',
+    image: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=800&auto=format&fit=crop',
     crowdData: {
       '00:00': 30,
       '04:00': 5,
@@ -102,13 +116,14 @@ export const indiaDestinations: Destination[] = [
       '20:00': 65,
       '22:00': 50
     },
-    price: 2000,
+    price: createPrice(200, 100, 800, ['Beach access']),
     rating: 4.7,
     coordinates: {
       lat: 15.2993,
       lng: 74.1240
     },
-    bestTimeToVisit: 'Early Morning'
+    bestTimeToVisit: 'Early Morning',
+    tags: ['Beach', 'Nightlife', 'Water Sports']
   },
   {
     id: 'dest_004',
@@ -116,7 +131,7 @@ export const indiaDestinations: Destination[] = [
     city: 'Varanasi',
     state: 'Uttar Pradesh',
     description: 'One of the oldest continuously inhabited cities in the world, Varanasi\'s ghats along the holy Ganges River offer a spiritual experience with daily rituals and ceremonies.',
-    image: 'https://images.unsplash.com/photo-1561361058-c24e021e3f8e',
+    image: 'https://images.unsplash.com/photo-1561361058-c24e021e3f8e?w=800&auto=format&fit=crop',
     crowdData: {
       '00:00': 15,
       '04:00': 60,
@@ -129,13 +144,14 @@ export const indiaDestinations: Destination[] = [
       '20:00': 90,
       '22:00': 50
     },
-    price: 800,
+    price: createPrice(0, 0, 0, ['Ghat access', 'Evening aarti']),
     rating: 4.6,
     coordinates: {
       lat: 25.3176,
       lng: 83.0100
     },
-    bestTimeToVisit: 'Early Morning'
+    bestTimeToVisit: 'Early Morning',
+    tags: ['Spiritual', 'Cultural', 'River']
   },
   {
     id: 'dest_005',
@@ -143,7 +159,7 @@ export const indiaDestinations: Destination[] = [
     city: 'Darjeeling',
     state: 'West Bengal',
     description: 'Known for its tea plantations and the panoramic views of the Himalayas, Darjeeling is a charming hill station with the iconic Darjeeling Himalayan Railway.',
-    image: 'https://images.unsplash.com/photo-1544134243-c9f0a0e07330',
+    image: 'https://images.unsplash.com/photo-1544134243-c9f0a0e07330?w=800&auto=format&fit=crop',
     crowdData: {
       '00:00': 5,
       '04:00': 15,
@@ -156,13 +172,14 @@ export const indiaDestinations: Destination[] = [
       '20:00': 30,
       '22:00': 15
     },
-    price: 1800,
+    price: createPrice(300, 150, 1200, ['Tea garden tours', 'Toy train ride']),
     rating: 4.5,
     coordinates: {
       lat: 27.0360,
       lng: 88.2627
     },
-    bestTimeToVisit: 'Early Morning'
+    bestTimeToVisit: 'Early Morning',
+    tags: ['Hill Station', 'Tea', 'Scenic']
   },
   {
     id: 'dest_006',
@@ -170,7 +187,7 @@ export const indiaDestinations: Destination[] = [
     city: 'Alleppey',
     state: 'Kerala',
     description: 'A network of lagoons, lakes, and canals parallel to the Arabian Sea coast, the Kerala backwaters offer a serene experience on traditional houseboats.',
-    image: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944',
+    image: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=800&auto=format&fit=crop',
     crowdData: {
       '00:00': 10,
       '04:00': 15,
@@ -183,13 +200,14 @@ export const indiaDestinations: Destination[] = [
       '20:00': 30,
       '22:00': 20
     },
-    price: 2500,
+    price: createPrice(1200, 600, 4800, ['Houseboat cruise', 'Meals']),
     rating: 4.9,
     coordinates: {
       lat: 9.4981,
       lng: 76.3388
     },
-    bestTimeToVisit: 'Morning'
+    bestTimeToVisit: 'Morning',
+    tags: ['Backwaters', 'Houseboat', 'Nature']
   },
   {
     id: 'dest_007',
@@ -197,7 +215,7 @@ export const indiaDestinations: Destination[] = [
     city: 'Mysore',
     state: 'Karnataka',
     description: 'A historical palace that showcases Indo-Saracenic architecture, the Mysore Palace is known for its intricate ceilings, sculpted pillars, and the spectacular light show.',
-    image: 'https://images.unsplash.com/photo-1580294647332-8a399cd9621b',
+    image: 'https://images.unsplash.com/photo-1580294647332-8a399cd9621b?w=800&auto=format&fit=crop',
     crowdData: {
       '00:00': 0,
       '04:00': 0,
@@ -210,13 +228,14 @@ export const indiaDestinations: Destination[] = [
       '20:00': 95,
       '22:00': 40
     },
-    price: 1000,
+    price: createPrice(200, 100, 800, ['Palace tour', 'Light show']),
     rating: 4.7,
     coordinates: {
       lat: 12.3052,
       lng: 76.6552
     },
-    bestTimeToVisit: 'Morning'
+    bestTimeToVisit: 'Morning',
+    tags: ['Palace', 'Historical', 'Architecture']
   },
   {
     id: 'dest_008',
@@ -224,7 +243,7 @@ export const indiaDestinations: Destination[] = [
     city: 'Amritsar',
     state: 'Punjab',
     description: 'The holiest shrine of Sikhism, the Golden Temple is a spiritual sanctuary that welcomes people of all faiths and offers free meals to thousands of visitors daily.',
-    image: 'https://images.unsplash.com/photo-1514222134-b57cbb8617da',
+    image: 'https://images.unsplash.com/photo-1514222134-b57cbb8617da?w=800&auto=format&fit=crop',
     crowdData: {
       '00:00': 40,
       '04:00': 30,
@@ -237,13 +256,14 @@ export const indiaDestinations: Destination[] = [
       '20:00': 90,
       '22:00': 65
     },
-    price: 0,
+    price: createPrice(0, 0, 0, ['Temple visit', 'Community kitchen']),
     rating: 4.9,
     coordinates: {
       lat: 31.6200,
       lng: 74.8765
     },
-    bestTimeToVisit: 'Early Morning'
+    bestTimeToVisit: 'Early Morning',
+    tags: ['Temple', 'Spiritual', 'Free']
   },
   {
     id: 'dest_009',
@@ -251,7 +271,7 @@ export const indiaDestinations: Destination[] = [
     city: 'Kutch',
     state: 'Gujarat',
     description: 'One of the largest salt deserts in the world, the Rann of Kutch transforms into a surreal landscape during the Rann Utsav festival with its white salt marsh.',
-    image: 'https://images.unsplash.com/photo-1589308078059-be1415eab4c3',
+    image: 'https://images.unsplash.com/photo-1589308078059-be1415eab4c3?w=800&auto=format&fit=crop',
     crowdData: {
       '00:00': 5,
       '04:00': 10,
@@ -264,13 +284,14 @@ export const indiaDestinations: Destination[] = [
       '20:00': 40,
       '22:00': 15
     },
-    price: 1200,
+    price: createPrice(500, 250, 2000, ['Salt desert access', 'Cultural shows']),
     rating: 4.5,
     coordinates: {
       lat: 23.7337,
       lng: 69.8597
     },
-    bestTimeToVisit: 'Evening'
+    bestTimeToVisit: 'Evening',
+    tags: ['Desert', 'Cultural', 'Festival']
   },
   {
     id: 'dest_010',
@@ -278,7 +299,7 @@ export const indiaDestinations: Destination[] = [
     city: 'Leh',
     state: 'Ladakh',
     description: 'Known for its high-altitude lakes like Pangong and Tso Moriri, Ladakh offers breathtaking landscapes with crystal clear blue waters set against rugged mountains.',
-    image: 'https://images.unsplash.com/photo-1626015365107-9ebc07b8f276',
+    image: 'https://images.unsplash.com/photo-1626015365107-9ebc07b8f276?w=800&auto=format&fit=crop',
     crowdData: {
       '00:00': 5,
       '04:00': 10,
@@ -291,13 +312,14 @@ export const indiaDestinations: Destination[] = [
       '20:00': 20,
       '22:00': 10
     },
-    price: 3000,
+    price: createPrice(300, 150, 1200, ['Lake access', 'Permit fees']),
     rating: 4.8,
     coordinates: {
       lat: 34.1526,
       lng: 77.5771
     },
-    bestTimeToVisit: 'Morning'
+    bestTimeToVisit: 'Morning',
+    tags: ['Lakes', 'Mountains', 'Adventure']
   },
   {
     id: 'dest_011',
@@ -305,15 +327,16 @@ export const indiaDestinations: Destination[] = [
     city: 'Khajuraho',
     state: 'Madhya Pradesh',
     description: 'Famous for their nagara-style architectural symbolism and erotic sculptures, these Hindu and Jain temples are a UNESCO World Heritage site.',
-    image: 'https://images.unsplash.com/photo-1600100399290-14c6048bd5a6',
+    image: 'https://images.unsplash.com/photo-1600100399290-14c6048bd5a6?w=800&auto=format&fit=crop',
     crowdData: generateCrowdData(),
-    price: 1100,
+    price: createPrice(500, 250, 2000, ['Temple complex', 'Audio guide']),
     rating: 4.6,
     coordinates: {
       lat: 24.8318,
       lng: 79.9199
     },
-    bestTimeToVisit: 'Morning'
+    bestTimeToVisit: 'Morning',
+    tags: ['UNESCO', 'Temple', 'Historical']
   },
   {
     id: 'dest_012',
@@ -321,15 +344,16 @@ export const indiaDestinations: Destination[] = [
     city: 'South 24 Parganas',
     state: 'West Bengal',
     description: 'Home to the Royal Bengal Tiger, the Sundarbans is the largest mangrove forest in the world, offering unique wildlife experiences and boat safaris.',
-    image: 'https://images.unsplash.com/photo-1590177800442-6d546a88908a',
+    image: 'https://images.unsplash.com/photo-1590177800442-6d546a88908a?w=800&auto=format&fit=crop',
     crowdData: generateCrowdData(),
-    price: 2200,
+    price: createPrice(1500, 750, 6000, ['Boat safari', 'Park entry']),
     rating: 4.7,
     coordinates: {
       lat: 21.9497,
       lng: 89.1833
     },
-    bestTimeToVisit: 'Morning'
+    bestTimeToVisit: 'Morning',
+    tags: ['Wildlife', 'Tiger', 'Mangrove']
   },
   {
     id: 'dest_013',
@@ -337,15 +361,16 @@ export const indiaDestinations: Destination[] = [
     city: 'Chamoli',
     state: 'Uttarakhand',
     description: 'A UNESCO World Heritage Site, this high-altitude valley is known for its meadows of endemic alpine flowers and rich biodiversity.',
-    image: 'https://images.unsplash.com/photo-1580977251946-c5cf22d0f42f',
+    image: 'https://images.unsplash.com/photo-1580977251946-c5cf22d0f42f?w=800&auto=format&fit=crop',
     crowdData: generateCrowdData(),
-    price: 1500,
+    price: createPrice(600, 300, 2400, ['Park entry', 'Trekking permit']),
     rating: 4.8,
     coordinates: {
       lat: 30.7283,
       lng: 79.6050
     },
-    bestTimeToVisit: 'Morning'
+    bestTimeToVisit: 'Morning',
+    tags: ['Flowers', 'Trekking', 'Nature']
   },
   {
     id: 'dest_014',
@@ -353,15 +378,16 @@ export const indiaDestinations: Destination[] = [
     city: 'Hampi',
     state: 'Karnataka',
     description: 'The ancient ruins of Vijayanagara Empire, Hampi is a UNESCO World Heritage Site with stunning temple complexes, monolithic structures, and boulder-strewn landscapes.',
-    image: 'https://images.unsplash.com/photo-1613467143018-03fd56bee88d',
+    image: 'https://images.unsplash.com/photo-1613467143018-03fd56bee88d?w=800&auto=format&fit=crop',
     crowdData: generateCrowdData(),
-    price: 900,
+    price: createPrice(500, 250, 2000, ['Ruins access', 'Archaeological sites']),
     rating: 4.7,
     coordinates: {
       lat: 15.3350,
       lng: 76.4600
     },
-    bestTimeToVisit: 'Morning'
+    bestTimeToVisit: 'Morning',
+    tags: ['UNESCO', 'Ruins', 'Historical']
   },
   {
     id: 'dest_015',
@@ -369,15 +395,16 @@ export const indiaDestinations: Destination[] = [
     city: 'Port Blair',
     state: 'Andaman & Nicobar',
     description: 'Known for their pristine beaches, crystal-clear waters, and fascinating marine life, the Andaman Islands offer excellent opportunities for water sports and relaxation.',
-    image: 'https://images.unsplash.com/photo-1586076585588-526649731ae6',
+    image: 'https://images.unsplash.com/photo-1586076585588-526649731ae6?w=800&auto=format&fit=crop',
     crowdData: generateCrowdData(),
-    price: 5000,
+    price: createPrice(500, 250, 2000, ['Beach access', 'Permit fees']),
     rating: 4.9,
     coordinates: {
       lat: 11.7401,
       lng: 92.6586
     },
-    bestTimeToVisit: 'Morning'
+    bestTimeToVisit: 'Morning',
+    tags: ['Beach', 'Island', 'Water Sports']
   },
   {
     id: 'dest_016',
@@ -385,15 +412,16 @@ export const indiaDestinations: Destination[] = [
     city: 'Golaghat',
     state: 'Assam',
     description: 'A UNESCO World Heritage Site, Kaziranga is home to the largest population of one-horned rhinoceroses in the world, along with tigers, elephants, and wild water buffaloes.',
-    image: 'https://images.unsplash.com/photo-1605069574908-3bec890b61d5',
+    image: 'https://images.unsplash.com/photo-1605069574908-3bec890b61d5?w=800&auto=format&fit=crop',
     crowdData: generateCrowdData(),
-    price: 1800,
+    price: createPrice(1200, 600, 4800, ['Jeep safari', 'Park entry']),
     rating: 4.8,
     coordinates: {
       lat: 26.5775,
       lng: 93.1700
     },
-    bestTimeToVisit: 'Morning'
+    bestTimeToVisit: 'Morning',
+    tags: ['Wildlife', 'Rhino', 'UNESCO']
   },
   {
     id: 'dest_017',
@@ -401,15 +429,16 @@ export const indiaDestinations: Destination[] = [
     city: 'Aurangabad',
     state: 'Maharashtra',
     description: 'These ancient rock-cut cave temples showcase Buddhist, Hindu, and Jain monuments with intricate carvings and paintings dating back to the 2nd century BCE.',
-    image: 'https://images.unsplash.com/photo-1590080552494-dcda542194a4',
+    image: 'https://images.unsplash.com/photo-1590080552494-dcda542194a4?w=800&auto=format&fit=crop',
     crowdData: generateCrowdData(),
-    price: 1400,
+    price: createPrice(600, 300, 2400, ['Cave access', 'Audio guide']),
     rating: 4.7,
     coordinates: {
       lat: 20.5518,
       lng: 75.7448
     },
-    bestTimeToVisit: 'Morning'
+    bestTimeToVisit: 'Morning',
+    tags: ['UNESCO', 'Caves', 'Historical']
   },
   {
     id: 'dest_018',
@@ -417,15 +446,16 @@ export const indiaDestinations: Destination[] = [
     city: 'Madikeri',
     state: 'Karnataka',
     description: 'Known as the "Scotland of India," Coorg is a misty hill station with coffee plantations, waterfalls, and lush forests offering a peaceful retreat.',
-    image: 'https://images.unsplash.com/photo-1577715694662-6a778a31a978',
+    image: 'https://images.unsplash.com/photo-1577715694662-6a778a31a978?w=800&auto=format&fit=crop',
     crowdData: generateCrowdData(),
-    price: 2000,
+    price: createPrice(300, 150, 1200, ['Plantation tours', 'Nature walks']),
     rating: 4.6,
     coordinates: {
       lat: 12.4244,
       lng: 75.7382
     },
-    bestTimeToVisit: 'Morning'
+    bestTimeToVisit: 'Morning',
+    tags: ['Hill Station', 'Coffee', 'Nature']
   },
   {
     id: 'dest_019',
@@ -433,15 +463,16 @@ export const indiaDestinations: Destination[] = [
     city: 'Munnar',
     state: 'Kerala',
     description: 'Famous for its sprawling tea plantations, misty hills, and cool climate, Munnar offers breathtaking views of the Western Ghats and diverse flora and fauna.',
-    image: 'https://images.unsplash.com/photo-1590689860171-2e105100eac1',
+    image: 'https://images.unsplash.com/photo-1590689860171-2e105100eac1?w=800&auto=format&fit=crop',
     crowdData: generateCrowdData(),
-    price: 1700,
+    price: createPrice(400, 200, 1600, ['Tea estate tours', 'Museum entry']),
     rating: 4.7,
     coordinates: {
       lat: 10.0889,
       lng: 77.0595
     },
-    bestTimeToVisit: 'Morning'
+    bestTimeToVisit: 'Morning',
+    tags: ['Tea', 'Plantation', 'Hill Station']
   },
   {
     id: 'dest_020',
@@ -449,14 +480,15 @@ export const indiaDestinations: Destination[] = [
     city: 'Delhi',
     state: 'Delhi',
     description: 'A UNESCO World Heritage Site, this 73-meter tall tower of victory is an example of Indo-Islamic architecture with intricate carvings and verses from the Quran.',
-    image: 'https://images.unsplash.com/photo-1548013146-72479768bada',
+    image: 'https://images.unsplash.com/photo-1548013146-72479768bada?w=800&auto=format&fit=crop',
     crowdData: generateCrowdData(),
-    price: 600,
+    price: createPrice(350, 175, 1400, ['Minar access', 'Archaeological complex']),
     rating: 4.5,
     coordinates: {
       lat: 28.5245,
       lng: 77.1855
     },
-    bestTimeToVisit: 'Morning'
+    bestTimeToVisit: 'Morning',
+    tags: ['UNESCO', 'Monument', 'Historical']
   }
 ];
