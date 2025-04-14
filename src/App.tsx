@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -36,7 +35,7 @@ const App = () => (
             <TooltipProvider>
               <Toaster />
               <Sonner />
-              <BrowserRouter>
+              <BrowserRouter basename={import.meta.env.BASE_URL}>
                 <Routes>
                   {/* Public Routes */}
                   <Route path="/" element={<Index />} />
@@ -44,34 +43,35 @@ const App = () => (
                   <Route path="/signup" element={<Signup />} />
                   <Route path="/about" element={<About />} />
                   <Route path="/destinations" element={<Destinations />} />
-                  <Route path="/destinations/:id" element={<DestinationDetail />} />
+                  <Route 
+                    path="/destinations/:id" 
+                    element={<DestinationDetail />} 
+                  />
                   <Route path="/premium" element={<PremiumFeatures />} />
                   
-                  {/* Protected Routes (Require Authentication) */}
+                  {/* Protected Routes */}
                   <Route 
                     path="/profile-completion" 
                     element={
-                      <RouteGuard requireAuth={true}>
+                      <RouteGuard requireAuth>
                         <ProfileCompletion />
                       </RouteGuard>
                     } 
                   />
                   
-                  {/* Premium Success Page - Protected & Requires Premium */}
                   <Route 
                     path="/premium-success" 
                     element={
-                      <RouteGuard requireAuth={true}>
+                      <RouteGuard requireAuth>
                         <PremiumSuccess />
                       </RouteGuard>
                     } 
                   />
                   
-                  {/* Routes that require completed profile */}
                   <Route 
                     path="/bookings" 
                     element={
-                      <RouteGuard requireAuth={true}>
+                      <RouteGuard requireAuth>
                         <MyBookings />
                       </RouteGuard>
                     } 
@@ -80,7 +80,7 @@ const App = () => (
                   <Route 
                     path="/bookings/:id" 
                     element={
-                      <RouteGuard requireAuth={true}>
+                      <RouteGuard requireAuth>
                         <BookingDetails />
                       </RouteGuard>
                     } 
@@ -89,7 +89,7 @@ const App = () => (
                   <Route 
                     path="/trip-planner" 
                     element={
-                      <RouteGuard requireAuth={true} requireProfileComplete={true}>
+                      <RouteGuard requireAuth requireProfileComplete>
                         <TripPlanner />
                       </RouteGuard>
                     } 
@@ -98,7 +98,7 @@ const App = () => (
                   <Route 
                     path="/profile" 
                     element={
-                      <RouteGuard requireAuth={true}>
+                      <RouteGuard requireAuth>
                         <div>Profile Page (To be implemented)</div>
                       </RouteGuard>
                     } 
