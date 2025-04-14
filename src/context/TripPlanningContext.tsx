@@ -766,7 +766,7 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return baseAmenities[type];
   };
 
-  const formatTime = (hours: number): string => {
+ const formatTime = (hours: number): string => {
     const wholeHours = Math.floor(hours);
     const minutes = Math.round((hours - wholeHours) * 60);
     
@@ -799,4 +799,74 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     
     if (wholeHours === 0) {
       return `${minutes}m`;
-    } else if (minutes ===
+    } else if (minutes === 0) {
+      return `${wholeHours}h`;
+    } else {
+      return `${wholeHours}h ${minutes}m`;
+    }
+  };
+
+  const getTransportAmenities = (transportType: string, isOvernight: boolean = false) => {
+    const baseAmenities = {
+      'bus': ['Air conditioning', 'Comfortable seats'],
+      'train': ['Dining car', 'Spacious seating'],
+      'flight': ['In-flight service', 'Express travel'],
+      'car': ['Privacy', 'Flexibility']
+    };
+    
+    const overnightExtras = {
+      'bus': ['Reclining seats', 'Rest stops', 'Onboard toilet'],
+      'train': ['Sleeper berths', 'Charging points', 'Refreshments'],
+      'flight': ['Blankets', 'Meals'],
+      'car': ['Stop at highway motels']
+    };
+    
+    const type = transportType as keyof typeof baseAmenities;
+    
+    if (isOvernight) {
+      return [...baseAmenities[type], ...overnightExtras[type]];
+    }
+    
+    return baseAmenities[type];
+  };
+
+  return (
+    <TripPlanningContext.Provider
+      value={{
+        hotels,
+        transports,
+        guides,
+        tripPlans,
+        loading,
+        error,
+        getHotelsByDestination,
+        getGuidesByDestination,
+        calculateTripCost,
+        saveTripPlan,
+        getUserTripPlans,
+        getTripPlanById,
+        cancelTripPlan,
+        checkTripFeasibility,
+        generateOptimalItinerary,
+        getDistanceMatrix,
+        getSuggestedTransport,
+        calculateDistanceBetweenDestinations,
+        // Include helper functions if needed by consumers
+        formatTime,
+        parseHours,
+        formatDuration,
+        getTransportAmenities
+      }}
+    >
+      {children}
+    </TripPlanningContext.Provider>
+  );
+};
+
+export const useTripPlanning = () => {
+  const context = useContext(TripPlanningContext);
+  if (context === undefined) {
+    throw new Error('useTripPlanning must be used within a TripPlanningProvider');
+  }
+  return context;
+};
