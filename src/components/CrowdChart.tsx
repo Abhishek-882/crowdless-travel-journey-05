@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { CrowdData } from '../types';
 import { 
@@ -10,23 +9,55 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts';
+import { useAuth } from '../context/AuthContext';
 
 interface CrowdChartProps {
   crowdData: CrowdData;
   className?: string;
+  destinationId?: string;
 }
 
-const CrowdChart: React.FC<CrowdChartProps> = ({ crowdData, className = '' }) => {
-  // Convert crowd data to format needed by recharts
+const CrowdChart: React.FC<CrowdChartProps> = ({ 
+  crowdData, 
+  className = '',
+  destinationId 
+}) => {
+  const { currentUser } = useAuth();
+  const hasBooking = currentUser?.bookings?.some(b => b.destinationIds.includes(destinationId));
+
+  // For non-premium users without booking
+  if (!currentUser?.isPremium && !hasBooking) {
+    return (
+      <div className={`${className} p-4 bg-gray-50 rounded-lg flex flex-col items-center justify-center h-[250px]`}>
+        <div className="mx-auto w-16 h-16 mb-4 flex items-center justify-center bg-gray-200 rounded-full">
+          <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-medium mb-2">Premium Feature Locked</h3>
+        <p className="text-gray-600 mb-4 text-center">
+          {destinationId 
+            ? "Book this destination or upgrade to Premium to see crowd data"
+            : "Upgrade to Premium to access this feature"}
+        </p>
+        <button 
+          onClick={() => currentUser?.isPremium ? {} : window.location.href = '/pricing'}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm"
+        >
+          {currentUser?.isPremium ? 'Book Now' : 'Upgrade to Premium'}
+        </button>
+      </div>
+    );
+  }
+
+  // Convert crowd data to chart format
   const chartData = Object.entries(crowdData).map(([time, value]) => {
-    // Convert 24-hour format to 12-hour format
     const [hours] = time.split(':').map(Number);
     const displayTime = hours === 0 ? '12 AM' : hours === 12 ? '12 PM' : hours > 12 ? `${hours - 12} PM` : `${hours} AM`;
     
     return {
       time: displayTime,
       crowd: value,
-      // Add color based on crowd level
       color: value <= 40 ? '#22c55e' : value <= 70 ? '#f59e0b' : '#ef4444',
     };
   });
@@ -44,13 +75,6 @@ const CrowdChart: React.FC<CrowdChartProps> = ({ crowdData, className = '' }) =>
     return timeA - timeB;
   });
 
-  // Function to determine color based on crowd level
-  const getStrokeColor = (value: number) => {
-    if (value <= 40) return '#22c55e';
-    if (value <= 70) return '#f59e0b';
-    return '#ef4444';
-  };
-
   // Custom tooltip
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -62,13 +86,13 @@ const CrowdChart: React.FC<CrowdChartProps> = ({ crowdData, className = '' }) =>
       
       if (crowd <= 40) {
         crowdLevel = 'Low';
-        textColor = 'text-crowd-low';
+        textColor = 'text-green-600';
       } else if (crowd <= 70) {
         crowdLevel = 'Moderate';
-        textColor = 'text-crowd-medium';
+        textColor = 'text-yellow-600';
       } else {
         crowdLevel = 'High';
-        textColor = 'text-crowd-high';
+        textColor = 'text-red-600';
       }
       
       return (
@@ -77,6 +101,9 @@ const CrowdChart: React.FC<CrowdChartProps> = ({ crowdData, className = '' }) =>
           <p className={`font-bold ${textColor}`}>
             {crowd}% - {crowdLevel} Crowd
           </p>
+          {hasBooking && (
+            <p className="text-xs text-indigo-600 mt-1">Premium booking insights active</p>
+          )}
         </div>
       );
     }
