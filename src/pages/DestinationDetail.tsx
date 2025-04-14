@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDestinations } from '../context/DestinationContext';
@@ -9,7 +8,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import CrowdChart from '../components/CrowdChart';
-import { formatPrice } from '../utils/helpers';
 import { Camera, MapPin, Calendar, Clock, Star } from 'lucide-react';
 
 const DestinationDetail: React.FC = () => {
@@ -27,7 +25,6 @@ const DestinationDetail: React.FC = () => {
       const foundDestination = getDestinationById(id);
       setDestination(foundDestination);
 
-      // Find similar destinations
       if (foundDestination) {
         const similar = destinations
           .filter(d => 
@@ -41,14 +38,21 @@ const DestinationDetail: React.FC = () => {
     }
   }, [id, destinations, getDestinationById]);
 
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(price).replace('₹', '₹');
+  };
+
+  const handleBookNow = () => {
+    navigate('/trip-planner');
+  };
+
   if (!destination) {
     return null;
   }
-
-  const handleBookNow = () => {
-    // Redirect to trip planner instead of booking page
-    navigate('/trip-planner');
-  };
 
   return (
     <Layout>
@@ -97,41 +101,41 @@ const DestinationDetail: React.FC = () => {
                   <h3 className="text-xl font-semibold mb-3">Key Information</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-start">
-                      <Camera className="h-5 w-5 mr-2 text-primary mt-0.5" />
+                      <Calendar className="h-5 w-5 mr-2 text-primary mt-0.5" />
                       <div>
-                        <p className="font-medium">Photography</p>
-                        <p className="text-sm text-gray-500">{destination.photography || 'Allowed'}</p>
+                        <p className="font-medium">Best Time to Visit</p>
+                        <p className="text-sm text-gray-500">{destination.bestTimeToVisit}</p>
                       </div>
                     </div>
                     <div className="flex items-start">
-                      <Calendar className="h-5 w-5 mr-2 text-primary mt-0.5" />
+                      <Clock className="h-5 w-5 mr-2 text-primary mt-0.5" />
                       <div>
                         <p className="font-medium">Opening Hours</p>
                         <p className="text-sm text-gray-500">{destination.openingHours || '9 AM - 6 PM'}</p>
                       </div>
                     </div>
+                    {destination.price.includes && destination.price.includes.length > 0 && (
+                      <div className="flex items-start">
+                        <Camera className="h-5 w-5 mr-2 text-primary mt-0.5" />
+                        <div>
+                          <p className="font-medium">Entry Includes</p>
+                          <p className="text-sm text-gray-500">{destination.price.includes.join(', ')}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
-                {/* Attractions */}
+                {/* Crowd Chart */}
                 <div>
-                  <h3 className="text-xl font-semibold mb-3">Attractions</h3>
-                  <ul className="list-disc list-inside space-y-1 text-gray-700">
-                    {destination.attractions ? 
-                      destination.attractions.map((attraction: string, index: number) => (
-                        <li key={index}>{attraction}</li>
-                      ))
-                      : 
-                      <li>Information about attractions coming soon</li>
-                    }
-                  </ul>
+                  <h3 className="text-xl font-semibold mb-3">Crowd Levels</h3>
+                  <CrowdChart crowdData={destination.crowdData} />
                 </div>
               </TabsContent>
               
               {/* Photos Tab */}
               <TabsContent value="photos" className="space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {/* For demo purposes, use the main image multiple times */}
                   {Array.from({ length: 6 }).map((_, index) => (
                     <img 
                       key={index}
@@ -157,11 +161,35 @@ const DestinationDetail: React.FC = () => {
             {/* Booking Card */}
             <Card>
               <CardContent className="p-6">
-                <div className="mb-4">
-                  <p className="text-lg font-bold">Entry from</p>
-                  <p className="text-3xl font-bold text-primary">{formatPrice(destination.price)}</p>
-                  <p className="text-sm text-gray-500">per person</p>
-                </div>
+                {destination.price.adult === 0 ? (
+                  <div className="mb-4">
+                    <p className="text-lg font-bold">Entry Fee</p>
+                    <p className="text-3xl font-bold text-green-600">Free</p>
+                    <p className="text-sm text-gray-500">for all visitors</p>
+                  </div>
+                ) : (
+                  <div className="mb-4">
+                    <p className="text-lg font-bold">Entry Fees</p>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-xl font-bold text-primary">{formatPrice(destination.price.adult)}</p>
+                        <p className="text-sm text-gray-500">per adult</p>
+                      </div>
+                      {destination.price.child > 0 && (
+                        <div>
+                          <p className="text-lg">{formatPrice(destination.price.child)}</p>
+                          <p className="text-sm text-gray-500">per child</p>
+                        </div>
+                      )}
+                      {destination.price.foreigner && destination.price.foreigner > 0 && (
+                        <div>
+                          <p className="text-lg">{formatPrice(destination.price.foreigner)}</p>
+                          <p className="text-sm text-gray-500">per foreigner</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <Button 
                   onClick={handleBookNow} 
                   className="w-full mb-4"
