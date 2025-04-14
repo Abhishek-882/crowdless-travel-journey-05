@@ -806,30 +806,6 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
-  const getTransportAmenities = (transportType: string, isOvernight: boolean = false) => {
-    const baseAmenities = {
-      'bus': ['Air conditioning', 'Comfortable seats'],
-      'train': ['Dining car', 'Spacious seating'],
-      'flight': ['In-flight service', 'Express travel'],
-      'car': ['Privacy', 'Flexibility']
-    };
-    
-    const overnightExtras = {
-      'bus': ['Reclining seats', 'Rest stops', 'Onboard toilet'],
-      'train': ['Sleeper berths', 'Charging points', 'Refreshments'],
-      'flight': ['Blankets', 'Meals'],
-      'car': ['Stop at highway motels']
-    };
-    
-    const type = transportType as keyof typeof baseAmenities;
-    
-    if (isOvernight) {
-      return [...baseAmenities[type], ...overnightExtras[type]];
-    }
-    
-    return baseAmenities[type];
-  };
-
   return (
     <TripPlanningContext.Provider
       value={{
