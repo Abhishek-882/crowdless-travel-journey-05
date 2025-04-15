@@ -16,7 +16,7 @@ const DestinationDetail: React.FC = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
-  const [destination, setDestination] = useState<Destination | null>(null);
+  const [destination, setDestination] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [similarDestinations, setSimilarDestinations] = useState<Destination[]>([]);
 
