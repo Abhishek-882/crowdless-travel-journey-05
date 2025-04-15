@@ -23,7 +23,14 @@ const CrowdChart: React.FC<CrowdChartProps> = ({
   destinationId 
 }) => {
   const { currentUser } = useAuth();
-  const hasBooking = currentUser?.bookings?.some(b => b.destinationIds.includes(destinationId));
+  const hasBooking = currentUser?.bookings?.some(bookingId => {
+    const booking = window.localStorage.getItem(`booking_${bookingId}`);
+    if (booking) {
+      const parsedBooking = JSON.parse(booking);
+      return parsedBooking.destinationId === destinationId;
+    }
+    return false;
+  });
 
   // For non-premium users without booking
   if (!currentUser?.isPremium && !hasBooking) {
