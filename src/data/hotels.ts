@@ -4,7 +4,7 @@ export const hotels: HotelType[] = [
   // Taj Mahal Hotels
   {
     id: 'hotel_001',
-    name: 'Agra  Inn',
+    name: 'Agra Budget Inn',
     destinationId: 'dest_001',
     pricePerPerson: 500,
     rating: 3.5,
@@ -95,7 +95,7 @@ export const hotels: HotelType[] = [
   // Jaipur City Palace Hotels
   {
     id: 'hotel_004',
-    name: 'Stay Inn',
+    name: 'Jaipur Stay Inn',
     destinationId: 'dest_002',
     pricePerPerson: 450,
     rating: 3.4,
@@ -150,7 +150,7 @@ export const hotels: HotelType[] = [
   },
   {
     id: 'hotel_006',
-    name: 'Rambagh Palace',
+    name: 'Taj Rambagh Palace',
     destinationId: 'dest_002',
     pricePerPerson: 2200,
     rating: 4.8,
@@ -186,7 +186,7 @@ export const hotels: HotelType[] = [
   // Goa Beaches Hotels
   {
     id: 'hotel_007',
-    name: 'Beachside Hotel',
+    name: 'Beachside Huts',
     destinationId: 'dest_003',
     pricePerPerson: 600,
     rating: 3.7,
@@ -241,7 +241,7 @@ export const hotels: HotelType[] = [
   },
   {
     id: 'hotel_009',
-    name: 'Taj Exotica ',
+    name: 'Taj Exotica Goa',
     destinationId: 'dest_003',
     pricePerPerson: 3000,
     rating: 4.9,
@@ -332,7 +332,7 @@ export const hotels: HotelType[] = [
   },
   {
     id: 'hotel_012',
-    name: 'Nadesar Palace',
+    name: 'Taj Nadesar Palace',
     destinationId: 'dest_004',
     pricePerPerson: 2000,
     rating: 4.7,
@@ -422,7 +422,7 @@ export const hotels: HotelType[] = [
   },
   {
     id: 'hotel_015',
-    name: 'Glenburn Estate',
+    name: 'Glenburn Tea Estate',
     destinationId: 'dest_005',
     pricePerPerson: 2400,
     rating: 4.8,
