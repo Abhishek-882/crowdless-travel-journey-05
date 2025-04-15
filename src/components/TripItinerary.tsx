@@ -1,10 +1,32 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { Bus, Train, Plane, Car, ArrowRight, Info, MapPin, Hotel, Clock, AlertTriangle, Coffee } from 'lucide-react';
-import { TripItineraryDay } from '../types';
+import { 
+  Bus, 
+  Train, 
+  Plane, 
+  Car, 
+  ArrowRight, 
+  Info, 
+  MapPin, 
+  Hotel, 
+  Clock, 
+  AlertTriangle, 
+  Coffee,
+  Wifi,
+  Utensils,
+  Droplet,
+  Tv,
+  Plug,
+  Star,
+  Sun,
+  Moon,
+  Cloud,
+  Umbrella
+} from 'lucide-react';
+import { TripItineraryDay, HotelType } from '../types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { findLastIndex } from '../utils/arrayUtils';
+import { useTripPlanning } from './TripPlanningContext';
 
 interface TripItineraryProps {
   itinerary: TripItineraryDay[];
@@ -18,6 +40,7 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
   isPremium = false
 }) => {
   const [expandedDays, setExpandedDays] = useState<Record<number, boolean>>({});
+  const { getTransportAmenities } = useTripPlanning();
 
   // Calculate travel details based on the transport type
   const calculateTravelDetails = (type: string) => {
@@ -65,106 +88,117 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
     }
   };
 
-  // Toggle day details expansion
-  const toggleDayExpansion = (day: number) => {
-    setExpandedDays(prev => ({
-      ...prev,
-      [day]: !prev[day]
-    }));
+  // Generate premium insights for each day
+  const generateDailyPremiumInsights = (destinationName: string, day: number) => {
+    const hash = destinationName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + day;
+    const crowdPercent = 20 + (hash % 60);
+    const bestTime = `${8 + (hash % 4)}:${hash % 2 === 0 ? '00' : '30'} AM`;
+    
+    const secretTips = [
+      `Ask for the ${destinationName.split(' ')[0]} special at local cafes`,
+      `The ${['north', 'south', 'east', 'west'][hash % 4]} entrance has shorter lines`,
+      `Free ${['guided tour', 'wifi', 'map', 'snack'][hash % 4]} available near main gate`,
+      `Best photo spot: ${['sunrise', 'sunset', 'golden hour', 'blue hour'][hash % 4]} at ${['main gate', 'east side', 'west garden', 'viewpoint'][hash % 4]}`,
+      `${['Local guide', 'Hotel concierge', 'Tourist info', 'Park ranger'][hash % 4]} knows hidden gems`
+    ];
+    
+    return {
+      bestTime: `Best visit time: ${bestTime} (${crowdPercent}% crowd)`,
+      secretTip: secretTips[hash % secretTips.length],
+      crowdPrediction: Array.from({ length: 4 }).map((_, i) => ({
+        time: `${9 + i * 3}:00 ${i < 2 ? 'AM' : 'PM'}`,
+        level: ['low', 'medium', 'high', 'peak'][(hash + i) % 4] as 'low' | 'medium' | 'high',
+        percentage: 20 + (hash + i * 10) % 60
+      }))
+    };
+  };
+
+  // Render hotel information
+  const renderHotelInfo = (hotel: HotelType) => (
+    <div className="border rounded-lg p-3 bg-gray-50">
+      <div className="flex justify-between">
+        <div>
+          <p className="font-medium">{hotel.name}</p>
+          <div className="flex items-center mt-1 text-sm text-gray-600">
+            <MapPin className="h-4 w-4 mr-1" />
+            <span>{hotel.location.distanceFromCenter.toFixed(1)} km from center</span>
+          </div>
+          <div className="flex items-center mt-1">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Star
+                key={i}
+                className={`h-4 w-4 ${i < hotel.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-200'}`}
+              />
+            ))}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-sm font-medium">
+            ₹{hotel.pricePerPerson}/person
+          </div>
+          {hotel.checkInTime && (
+            <div className="text-xs text-gray-500 mt-1">
+              {hotel.checkInTime} - {hotel.checkOutTime}
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-1 mt-2">
+        {hotel.amenities.slice(0, 4).map((amenity, i) => (
+          <span key={i} className="text-xs bg-gray-100 px-2 py-0.5 rounded-full">
+            {amenity}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+
+  // Render crowd level indicator
+  const renderCrowdLevel = (level: string, percentage: number) => {
+    let color = 'text-green-600';
+    let icon = <Sun className="h-4 w-4" />;
+    
+    if (percentage > 60) {
+      color = 'text-red-600';
+      icon = <Umbrella className="h-4 w-4" />;
+    } else if (percentage > 30) {
+      color = 'text-amber-600';
+      icon = <Cloud className="h-4 w-4" />;
+    }
+    
+    return (
+      <span className={`flex items-center gap-1 ${color}`}>
+        {icon}
+        <span>{level} ({percentage}%)</span>
+      </span>
+    );
   };
 
   // Check if we have any transit days
   const hasTransitDays = itinerary.some(day => day.isTransitDay);
 
-  // Find the last day for each destination to know when we're leaving
-  const getLastDayAtDestination = (destId: string, currentDay: number) => {
-    const nextDifferentDestIndex = itinerary.findIndex((day, index) => 
-      index > currentDay - 1 && day.destinationId !== destId
+  // Find the base hotel (location where you spend the most days)
+  const findBaseHotel = () => {
+    const daysByDestination: Record<string, number> = {};
+    
+    itinerary.forEach(day => {
+      if (!day.isTransitDay) {
+        daysByDestination[day.destinationId] = (daysByDestination[day.destinationId] || 0) + 1;
+      }
+    });
+    
+    const maxDays = Math.max(...Object.values(daysByDestination));
+    if (maxDays <= 1) return null;
+    
+    const baseDestId = Object.keys(daysByDestination).find(
+      id => daysByDestination[id] === maxDays
     );
     
-    return nextDifferentDestIndex !== -1 ? nextDifferentDestIndex : itinerary.length;
+    return itinerary.find(day => day.destinationId === baseDestId)?.destinationName;
   };
 
-  // Generate specialized activities for each destination
-  const getSpecializedActivities = (destName: string, day: number, isLastDay: boolean) => {
-    const activities = [];
-    const destLower = destName.toLowerCase();
-    
-    // Morning activities
-    if (destLower.includes('beach')) {
-      activities.push(day === 1 ? '8:00 AM: Sunrise beach walk' : '9:00 AM: Beach yoga session');
-    } else if (destLower.includes('palace') || destLower.includes('fort')) {
-      activities.push(day === 1 ? '9:00 AM: Palace guided tour' : '8:30 AM: Photography at the royal courtyards');
-    } else if (destLower.includes('temple')) {
-      activities.push(day === 1 ? '7:00 AM: Morning prayer ceremony' : '8:00 AM: Meditation session');
-    } else {
-      activities.push(day === 1 ? '8:30 AM: Start exploring the city' : '9:00 AM: Visit local markets');
-    }
-    
-    // Afternoon activities
-    if (destLower.includes('beach')) {
-      activities.push('1:00 PM: Beach volleyball & water sports');
-    } else if (destLower.includes('palace') || destLower.includes('fort')) {
-      activities.push('2:00 PM: Royal museum tour');
-    } else if (destLower.includes('temple')) {
-      activities.push('1:30 PM: Visit nearby shrines');
-    } else {
-      activities.push('1:00 PM: Lunch at local restaurant');
-    }
-    
-    // Evening activities
-    if (isLastDay) {
-      activities.push('6:00 PM: Pack and prepare for tomorrow\'s departure');
-    } else {
-      if (destLower.includes('beach')) {
-        activities.push('6:00 PM: Sunset beach dinner');
-      } else if (destLower.includes('palace') || destLower.includes('fort')) {
-        activities.push('7:00 PM: Light & sound show');
-      } else if (destLower.includes('temple')) {
-        activities.push('6:30 PM: Evening aarti ceremony');
-      } else {
-        activities.push('7:00 PM: Explore nightlife');
-      }
-    }
-    
-    return activities;
-  };
-
-  // Get the next destination for transition information
-  const getNextDestination = (currentIndex: number) => {
-    for (let i = currentIndex + 1; i < itinerary.length; i++) {
-      if (itinerary[i].destinationId !== itinerary[currentIndex].destinationId) {
-        return itinerary[i];
-      }
-    }
-    return null;
-  };
-
-  // Extract crowd data from detailed schedule (for premium users)
-  const extractCrowdData = (detailedSchedule?: { time: string; activity: string; location?: string; notes?: string }[]) => {
-    if (!detailedSchedule) return null;
-    
-    const crowdNotes = detailedSchedule
-      .filter(item => item.notes && item.notes.includes('crowd'))
-      .map(item => item.notes);
-    
-    if (crowdNotes.length === 0) return null;
-    
-    // Return the first note that contains crowd data
-    const crowdNote = crowdNotes[0];
-    if (!crowdNote) return null;
-    
-    // Extract time and percentage from format like "Best time: 10:30 AM (45% crowd)"
-    const match = crowdNote.match(/Best time: ([0-9:]+\s?[APM]+) \(([0-9]+)% crowd\)/i);
-    if (match && match.length >= 3) {
-      return {
-        time: match[1],
-        percentage: parseInt(match[2], 10)
-      };
-    }
-    
-    return null;
-  };
+  const baseHotel = findBaseHotel();
+  const travelDetails = calculateTravelDetails(transportType);
 
   if (!itinerary || itinerary.length === 0) {
     return (
@@ -173,72 +207,6 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
       </div>
     );
   }
-
-  // Calculate destination clusters (consecutive days at the same place)
-  const getDestinationClusters = () => {
-    const clusters: {destinationId: string, startDay: number, endDay: number}[] = [];
-    let currentCluster = {
-      destinationId: itinerary[0].destinationId,
-      startDay: itinerary[0].day,
-      endDay: itinerary[0].day
-    };
-    
-    for (let i = 1; i < itinerary.length; i++) {
-      const day = itinerary[i];
-      if (day.destinationId === currentCluster.destinationId && !day.isTransitDay) {
-        currentCluster.endDay = day.day;
-      } else {
-        clusters.push({...currentCluster});
-        currentCluster = {
-          destinationId: day.destinationId,
-          startDay: day.day,
-          endDay: day.day
-        };
-      }
-    }
-    
-    clusters.push({...currentCluster});
-    return clusters;
-  };
-
-  const destinationClusters = getDestinationClusters();
-
-  // Find the base hotel (location where you spend the most days)
-  const findBaseHotel = () => {
-    if (destinationClusters.length <= 1) return null;
-    
-    let maxDays = 0;
-    let baseDestId = '';
-    
-    destinationClusters.forEach(cluster => {
-      const daysCount = cluster.endDay - cluster.startDay + 1;
-      if (daysCount > maxDays) {
-        maxDays = daysCount;
-        baseDestId = cluster.destinationId;
-      }
-    });
-    
-    if (maxDays <= 1) return null;
-    
-    const baseDest = itinerary.find(day => day.destinationId === baseDestId);
-    return baseDest ? baseDest.destinationName : null;
-  };
-
-  const baseHotel = findBaseHotel();
-
-  // Create a map of destination IDs to the last day at that destination
-  const lastDaysByDestination: Record<string, number> = {};
-  itinerary.forEach((day, index) => {
-    const nextDifferentDestIndex = findLastIndex(itinerary, (d, i) => 
-      i >= index && d.destinationId === day.destinationId
-    );
-    
-    if (nextDifferentDestIndex !== -1) {
-      lastDaysByDestination[day.destinationId] = itinerary[nextDifferentDestIndex].day;
-    }
-  });
-
-  const travelDetails = calculateTravelDetails(transportType);
 
   return (
     <div className="space-y-6">
@@ -286,43 +254,20 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
                   <span>{travelDetails.cost}</span>
                   <span className="text-gray-500">Best for:</span>
                   <span>{travelDetails.advantages[0]}</span>
-                  <span className="text-gray-500">Overnight option:</span>
-                  <span>{travelDetails.overnight.includes('available') ? 'Yes' : 'No'}</span>
                 </div>
               </div>
             </div>
             
-            {hasTransitDays && (
-              <div className="flex-1 min-w-[150px]">
-                <h4 className="text-xs uppercase text-gray-500 font-semibold">Travel Tips</h4>
-                <ul className="mt-1 text-xs space-y-1 text-gray-600">
-                  {transportType === 'train' && (
-                    <>
-                      <li className="flex items-center gap-1"><Info className="h-3 w-3 text-blue-500" /> Book window seats for scenic views</li>
-                      <li className="flex items-center gap-1"><Info className="h-3 w-3 text-blue-500" /> Carry snacks and water</li>
-                    </>
-                  )}
-                  {transportType === 'flight' && (
-                    <>
-                      <li className="flex items-center gap-1"><Info className="h-3 w-3 text-blue-500" /> Check in online 24h before flight</li>
-                      <li className="flex items-center gap-1"><Info className="h-3 w-3 text-blue-500" /> Arrive at airport 2h before departure</li>
-                    </>
-                  )}
-                  {transportType === 'bus' && (
-                    <>
-                      <li className="flex items-center gap-1"><Info className="h-3 w-3 text-blue-500" /> Choose seats in the middle for stability</li>
-                      <li className="flex items-center gap-1"><Info className="h-3 w-3 text-blue-500" /> Pack motion sickness medicine</li>
-                    </>
-                  )}
-                  {transportType === 'car' && (
-                    <>
-                      <li className="flex items-center gap-1"><Info className="h-3 w-3 text-blue-500" /> Check for tolls on your route</li>
-                      <li className="flex items-center gap-1"><Info className="h-3 w-3 text-blue-500" /> Download offline maps before leaving</li>
-                    </>
-                  )}
-                </ul>
+            <div className="flex-1 min-w-[150px]">
+              <h4 className="text-xs uppercase text-gray-500 font-semibold">Amenities</h4>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {getTransportAmenities(transportType, hasTransitDays).map((amenity, i) => (
+                  <span key={i} className="text-xs bg-gray-100 px-2 py-0.5 rounded-full">
+                    {amenity}
+                  </span>
+                ))}
               </div>
-            )}
+            </div>
             
             {isPremium && (
               <div className="flex-1 min-w-[150px]">
@@ -346,11 +291,15 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
       {/* Itinerary Days */}
       <div className="space-y-4">
         {itinerary.map((day, index) => {
-          const isLastDayAtDestination = lastDaysByDestination[day.destinationId] === day.day;
-          const nextDest = getNextDestination(index);
+          const isLastDayAtDestination = itinerary.slice(index + 1).every(
+            d => d.destinationId !== day.destinationId
+          );
           
-          // Extract crowd data for premium users
-          const crowdData = isPremium ? extractCrowdData(day.detailedSchedule) : null;
+          const nextDest = itinerary.find(
+            (d, i) => i > index && d.destinationId !== day.destinationId
+          );
+          
+          const premiumInsights = isPremium ? generateDailyPremiumInsights(day.destinationName, day.day) : null;
           
           return (
             <Card 
@@ -361,12 +310,19 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
                 {/* Day Header */}
                 <div 
                   className={`p-4 flex justify-between items-center cursor-pointer ${day.isTransitDay ? 'bg-blue-100/50' : 'bg-gray-50'}`}
-                  onClick={() => toggleDayExpansion(day.day)}
+                  onClick={() => setExpandedDays(prev => ({
+                    ...prev,
+                    [day.day]: !prev[day.day]
+                  }))}
                 >
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="font-medium">Day {day.day}: {day.destinationName}</h3>
-                      {day.isTransitDay && <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200">Transit</Badge>}
+                      {day.isTransitDay && (
+                        <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200">
+                          Transit
+                        </Badge>
+                      )}
                       {isLastDayAtDestination && nextDest && !day.isTransitDay && (
                         <div className="flex items-center text-xs text-gray-500">
                           <ArrowRight className="h-3 w-3 mx-1" />
@@ -454,34 +410,47 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
                         )}
                       </div>
                     ) : (
-                      <div className="space-y-3">
-                        <h4 className="font-medium text-sm">Daily Itinerary:</h4>
-                        <ul className="space-y-2 text-sm">
-                          {isPremium ? (
-                            // Premium users get detailed hourly schedule
-                            day.detailedSchedule?.map((item, i) => (
-                              <li key={i} className="flex items-start">
-                                <span className="text-gray-500 min-w-[80px]">{item.time}:</span>
-                                <span>{item.activity}</span>
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="font-medium text-sm mb-2">Daily Itinerary</h4>
+                          <ul className="space-y-3">
+                            {day.detailedSchedule?.map((item, i) => (
+                              <li key={i} className="flex items-start gap-2">
+                                <span className="text-gray-500 min-w-[60px]">{item.time}</span>
+                                <div>
+                                  <p>{item.activity}</p>
+                                  {item.notes && (
+                                    <p className="text-xs text-gray-500 mt-1">{item.notes}</p>
+                                  )}
+                                </div>
                               </li>
-                            ))
-                          ) : (
-                            // Free users get basic activities
-                            day.activities.map((activity, i) => (
-                              <li key={i} className="flex items-center">
-                                <span className="h-1.5 w-1.5 rounded-full bg-gray-400 mr-2"></span>
-                                <span>{activity}</span>
-                              </li>
-                            ))
-                          )}
-                        </ul>
+                            ))}
+                          </ul>
+                        </div>
                         
-                        {isPremium && crowdData && (
-                          <div className="bg-amber-50 border border-amber-200 p-3 rounded-md">
-                            <p className="text-sm font-medium text-amber-800">Premium Insights:</p>
-                            <p className="text-xs text-amber-700 mt-1">
-                              Least crowds at {crowdData.time} ({crowdData.percentage}% crowd)
-                            </p>
+                        {day.hotels && day.hotels.length > 0 && (
+                          <div>
+                            <h4 className="font-medium text-sm mb-2">Recommended Hotel</h4>
+                            {renderHotelInfo(day.hotels[0])}
+                          </div>
+                        )}
+                        
+                        {isPremium && premiumInsights && (
+                          <div className="bg-blue-50 border border-blue-200 p-3 rounded-md">
+                            <h4 className="text-sm font-medium text-blue-800 mb-2">
+                              Premium Insights for {day.destinationName}
+                            </h4>
+                            <p className="text-xs text-blue-700 mb-2">{premiumInsights.secretTip}</p>
+                            
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-blue-700">Crowd Prediction:</p>
+                              {premiumInsights.crowdPrediction.map((pred, i) => (
+                                <div key={i} className="flex justify-between text-xs text-blue-600">
+                                  <span>{pred.time}</span>
+                                  {renderCrowdLevel(pred.level, pred.percentage)}
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                         
@@ -489,8 +458,7 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
                           <div className="bg-blue-50 border border-blue-200 p-3 rounded-md mt-3">
                             <p className="text-sm font-medium text-blue-800">Next Destination</p>
                             <p className="text-xs text-blue-700 mt-1">
-                              Tomorrow you'll be heading to {nextDest.destinationName}. 
-                              {isPremium ? ` Prepare for a ${calculateTravelDetails(transportType).speed.includes('500') ? 'quick' : 'scenic'} journey!` : ''}
+                              Tomorrow you'll be heading to {nextDest.destinationName}
                             </p>
                           </div>
                         )}
