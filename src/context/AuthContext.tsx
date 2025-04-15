@@ -219,16 +219,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Add booking function
-  const addBooking = async (bookingData: {
-    destinationIds: string[];
-    startDate: string;
-    endDate: string;
-  }): Promise<void> => {
-    setError(null);
-    setIsLoading(true);
-
-    try {
-      if (!currentUser) throw new Error('You must be logged in to add a booking');
+ currentUser.bookings.push(bookingId);
 
       const newBooking = {
         id: `booking_${uuidv4()}`,
