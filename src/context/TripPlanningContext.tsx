@@ -16,6 +16,7 @@ import { guides } from '../data/guides';
 import { useToast } from '../hooks/use-toast';
 import { useBookings } from './BookingContext';
 import { useDestinations } from './DestinationContext';
+import { getTransportAmenities } from '../utils/tripPlanningUtils';
 
 const TripPlanningContext = createContext<TripPlanningContextType | undefined>(undefined);
 
@@ -85,7 +86,7 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // Calculate hotel proximity with caching
   const calculateHotelProximity = useCallback((hotel: HotelType, destination: Destination): HotelType => {
-    if (!destination.coordinates) return hotel;
+    if (!destination.coordinates || !hotel.location) return hotel;
     
     const distance = calculateDistance(
       hotel.location.coordinates.lat,
@@ -117,7 +118,12 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Get nearby hotels sorted by distance
   const getNearbyHotels = useCallback((destinationId: string, limit = 3) => {
     return getHotelsByDestination(destinationId)
-      .sort((a, b) => a.location.distanceFromCenter - b.location.distanceFromCenter)
+      .sort((a, b) => {
+        if (a.location && b.location) {
+          return a.location.distanceFromCenter - b.location.distanceFromCenter;
+        }
+        return 0;
+      })
       .slice(0, limit);
   }, [getHotelsByDestination]);
 
@@ -131,15 +137,19 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     });
 
     const avgProximity = destinationHotels.reduce((sum, hotels) => {
-      const destAvg = hotels.reduce((sum, hotel) => sum + hotel.location.proximityScore, 0) / hotels.length;
+      const destAvg = hotels.reduce((sum, hotel) => 
+        sum + (hotel.location ? hotel.location.proximityScore : 0), 0) / hotels.length;
       return sum + destAvg;
     }, 0) / destinationIds.length;
 
     return destinationHotels.map(hotels => 
-      hotels.sort((a, b) => 
-        Math.abs(a.location.proximityScore - avgProximity) - 
-        Math.abs(b.location.proximityScore - avgProximity)
-      )[0]
+      hotels.sort((a, b) => {
+        if (a.location && b.location) {
+          return Math.abs(a.location.proximityScore - avgProximity) - 
+                 Math.abs(b.location.proximityScore - avgProximity);
+        }
+        return 0;
+      })[0]
     );
   }, [destinations, calculateHotelProximity]);
 
@@ -217,7 +227,7 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
         ],
         isTransitDay: false,
         detailedSchedule,
-        hotels: getOptimalHotels([destination.id])
+        hotels: [destination.id]
       });
       
       currentDate.setDate(currentDate.getDate() + 1);
@@ -251,16 +261,16 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
       });
       
       const avgProximityScore = optimalHotels.reduce((sum, hotel) => 
-        sum + hotel.location.proximityScore, 0) / optimalHotels.length;
+        sum + (hotel.location ? hotel.location.proximityScore : 0), 0) / optimalHotels.length;
 
       const newTripPlan: TripPlan = {
         ...tripPlanData,
         id: newTripPlanId,
         createdAt: new Date().toISOString(),
         transportType,
-        selectedHotels: optimalHotels,
         itinerary,
-        hotelProximityScore: avgProximityScore
+        hotelProximityScore: avgProximityScore,
+        selectedHotels: optimalHotels.map(hotel => hotel.id)
       };
 
       setTripPlans(prev => [...prev, newTripPlan]);
@@ -317,17 +327,6 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, [toast]);
 
-  // Get transport amenities
-  const getTransportAmenities = useCallback((type: string, isOvernight: boolean) => {
-    const base = {
-      'bus': ['AC', 'Seats'],
-      'train': ['Dining', 'Seats'],
-      'flight': ['Service', 'Meals'],
-      'car': ['Privacy', 'Flexibility']
-    }[type as 'bus' | 'train' | 'flight' | 'car'] || [];
-    return isOvernight ? [...base, 'Overnight option'] : base;
-  }, []);
-
   // Calculate trip costs
   const calculateTripCost = useCallback((options: {
     destinationIds: string[];
@@ -376,18 +375,18 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
       sum + segment.travelTimesByTransport[options.transportType], 0);
     
     const daysNeeded = Math.ceil(travelHours / 8) + options.destinationIds.length;
+    const daysShort = options.numberOfDays < daysNeeded ? daysNeeded - options.numberOfDays : undefined;
     
     return {
       feasible: options.numberOfDays >= daysNeeded,
       daysNeeded,
-      daysShort: options.numberOfDays < daysNeeded ? daysNeeded - options.numberOfDays : undefined,
+      daysShort,
       breakdown: distanceMatrix.map(segment => ({
-        fromId: segment.fromId,
-        toId: segment.toId,
-        fromName: segment.fromName,
-        toName: segment.toName,
-        distanceKm: segment.distanceKm,
-        travelHours: segment.travelTimesByTransport[options.transportType]
+        destinationId: segment.fromId,
+        destinationName: segment.fromName,
+        daysNeeded: 1, // Default 1 day per destination
+        travelHoursToNext: segment.travelTimesByTransport[options.transportType],
+        travelDaysToNext: Math.ceil(segment.travelTimesByTransport[options.transportType] / 8)
       })),
       totalDistance,
       totalTravelHours: travelHours
@@ -430,10 +429,10 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     
     return {
       recommendedType,
-      alternativeType: recommendedType === 'flight' ? 'train' : 'car',
+      alternativeType: recommendedType === 'flight' ? 'train' as const : 'car' as const,
       reasoning,
-      totalDistanceKm: totalDistance,
-      totalTravelTimeHours: totalTravelHours[recommendedType],
+      totalDistanceKm: totalDistance as number,
+      totalTravelTimeHours: totalTravelHours[recommendedType] as number,
       timeForSightseeing: sightseeingTime,
       isRealistic: sightseeingTime > 0,
       premiumAdvantages: isPremium ? [
