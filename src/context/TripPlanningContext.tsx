@@ -295,60 +295,60 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return isOvernight ? [...base, 'Overnight option'] : base;
   };
 
-   return (
-    <TripPlanningContext.Provider
-      value={{
-        hotels,
-        transports,
-        guides,
-        tripPlans,
-        loading,
-        error,
-        getHotelsByDestination,
-        getGuidesByDestination: (destId) => guides.filter(g => g.destinationId === destId),
-        calculateTripCost: () => ({ totalCost: 0, hotelsCost: 0, transportCost: 0, guidesCost: 0 }),
-        saveTripPlan,
-        getUserTripPlans: (userId) => tripPlans.filter(p => p.userId === userId),
-        getTripPlanById: (id) => tripPlans.find(p => p.id === id),
-        cancelTripPlan: async () => {},
-        checkTripFeasibility: () => ({ feasible: true, daysNeeded: 1, breakdown: [] }),
-        generateOptimalItinerary,
-        calculateDistanceBetweenDestinations,
-        getDistanceMatrix,
-        getSuggestedTransport: () => ({
-          recommendedType: 'car',
-          reasoning: '',
-          totalDistanceKm: 0,
-          totalTravelTimeHours: 0,
-          timeForSightseeing: 0,
-          isRealistic: true
-        }),
-        getTransportAmenities: (type, isOvernight) => {
-          const base = {
-            'bus': ['AC', 'Seats'],
-            'train': ['Dining', 'Seats'],
-            'flight': ['Service', 'Meals'],
-            'car': ['Privacy', 'Flexibility']
-          }[type as 'bus' | 'train' | 'flight' | 'car'] || [];
-          return isOvernight ? [...base, 'Overnight option'] : base;
-        },
-        getOptimalHotels,
-        getNearbyHotels: (destinationId, limit = 3) => 
-          getHotelsByDestination(destinationId)
-            .sort((a, b) => a.location.distanceFromCenter - b.location.distanceFromCenter)
-            .slice(0, limit),
-        calculateHotelProximity
-      }}
-    >
-      {children}
-    </TripPlanningContext.Provider>
-  );
-};
-
-export const useTripPlanning = (): TripPlanningContextType => {
-  const context = useContext(TripPlanningContext);
-  if (context === undefined) {
-    throw new Error('useTripPlanning must be used within a TripPlanningProvider');
-  }
-  return context;
-};
+  return (
+  <TripPlanningContext.Provider
+    value={{
+      hotels,
+      transports,
+      guides,
+      tripPlans,
+      loading,
+      error,
+      getHotelsByDestination, // Only reference it once here
+      getGuidesByDestination: (destId) => guides.filter(g => g.destinationId === destId),
+      calculateTripCost: () => ({ 
+        totalCost: 0, 
+        hotelsCost: 0, 
+        transportCost: 0, 
+        guidesCost: 0 
+      }),
+      saveTripPlan,
+      getUserTripPlans: (userId) => tripPlans.filter(p => p.userId === userId),
+      getTripPlanById: (id) => tripPlans.find(p => p.id === id),
+      cancelTripPlan: async () => {},
+      checkTripFeasibility: () => ({ 
+        feasible: true, 
+        daysNeeded: 1, 
+        breakdown: [] 
+      }),
+      generateOptimalItinerary,
+      calculateDistanceBetweenDestinations,
+      getDistanceMatrix,
+      getSuggestedTransport: () => ({
+        recommendedType: 'car',
+        reasoning: '',
+        totalDistanceKm: 0,
+        totalTravelTimeHours: 0,
+        timeForSightseeing: 0,
+        isRealistic: true
+      }),
+      getTransportAmenities: (type, isOvernight) => {
+        const base = {
+          'bus': ['AC', 'Seats'],
+          'train': ['Dining', 'Seats'],
+          'flight': ['Service', 'Meals'],
+          'car': ['Privacy', 'Flexibility']
+        }[type as 'bus' | 'train' | 'flight' | 'car'] || [];
+        return isOvernight ? [...base, 'Overnight option'] : base;
+      },
+      getOptimalHotels,
+      getNearbyHotels: (destinationId, limit = 3) => 
+        getHotelsByDestination(destinationId)
+          .sort((a, b) => a.location.distanceFromCenter - b.location.distanceFromCenter)
+          .slice(0, limit),
+      calculateHotelProximity
+    }}
+  >
+    {children}
+  </TripPlanningContext.Provider>
+);
