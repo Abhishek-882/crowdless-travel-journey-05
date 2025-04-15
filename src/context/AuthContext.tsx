@@ -12,11 +12,7 @@ interface AuthContextType {
   upgradeToPremium: () => Promise<void>;
   cancelPremium: () => Promise<void>;
   withdrawPremium: () => Promise<void>;
-  addBooking: (bookingData: {
-    destinationIds: string[];
-    startDate: string;
-    endDate: string;
-  }) => Promise<void>;
+  addBooking: (destinationId: string, startDate: string, endDate: string) => Promise<string>;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
@@ -219,21 +215,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Add booking function
- currentUser.bookings.push(bookingId);
+  const addBooking = async (destinationId: string, startDate: string, endDate: string): Promise<string> => {
+    setError(null);
+    setIsLoading(true);
+    
+    try {
+      if (!currentUser) throw new Error('You must be logged in to add a booking');
 
-      const newBooking = {
-        id: `booking_${uuidv4()}`,
-        ...bookingData
-      };
+      const bookingId = `booking_${uuidv4()}`;
+      
+      // Store new booking in localStorage
+      localStorage.setItem(`booking_${bookingId}`, JSON.stringify({
+        id: bookingId,
+        destinationId,
+        startDate,
+        endDate,
+        userId: currentUser.id,
+        status: 'confirmed',
+        createdAt: new Date().toISOString()
+      }));
 
+      // Add booking reference to user
       const updatedUser: User = {
         ...currentUser,
-        bookings: [...(currentUser.bookings || []), newBooking]
+        bookings: [...(currentUser.bookings || []), bookingId]
       };
 
       setCurrentUser(updatedUser);
       localStorage.setItem('currentUser', JSON.stringify(updatedUser));
 
+      // Update in users collection
       const users = JSON.parse(localStorage.getItem('users') || '[]');
       const userIndex = users.findIndex((u: User) => u.id === currentUser.id);
       if (userIndex !== -1) {
@@ -245,6 +256,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         title: 'Booking Added',
         description: 'Your booking has been recorded.',
       });
+      
+      return bookingId;
     } catch (err) {
       const errorMsg = (err as Error).message || 'Failed to add booking';
       setError(errorMsg);
@@ -259,7 +272,107 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Other premium management functions (cancelPremium, withdrawPremium) would go here...
+  // Cancel premium subscription
+  const cancelPremium = async (): Promise<void> => {
+    setError(null);
+    setIsLoading(true);
+    
+    try {
+      if (!currentUser) throw new Error('No user is logged in');
+      if (!currentUser.isPremium) throw new Error('You do not have a premium subscription');
+      
+      const updatedUser: User = {
+        ...currentUser,
+        isPremium: false,
+        premiumPurchaseDate: undefined
+      };
+      
+      setCurrentUser(updatedUser);
+      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+      
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const userIndex = users.findIndex((u: User) => u.id === currentUser.id);
+      if (userIndex !== -1) {
+        users[userIndex] = updatedUser;
+        localStorage.setItem('users', JSON.stringify(users));
+      }
+      
+      toast({
+        title: 'Subscription Cancelled',
+        description: 'Your premium subscription has been cancelled.',
+      });
+    } catch (err) {
+      const errorMsg = (err as Error).message;
+      setError(errorMsg);
+      toast({
+        title: 'Error',
+        description: errorMsg,
+        variant: 'destructive',
+      });
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Withdraw premium with refund
+  const withdrawPremium = async (): Promise<void> => {
+    setError(null);
+    setIsLoading(true);
+    
+    try {
+      if (!currentUser) throw new Error('No user is logged in');
+      if (!currentUser.isPremium) throw new Error('You do not have a premium subscription');
+      
+      // Calculate refund percentage based on time since purchase
+      const purchaseDate = currentUser.premiumPurchaseDate 
+        ? new Date(currentUser.premiumPurchaseDate)
+        : new Date();
+      const daysSincePurchase = Math.floor((Date.now() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // 100% refund within 7 days, 50% within 30 days, 0% after that
+      let refundPercentage = 0;
+      if (daysSincePurchase <= 7) {
+        refundPercentage = 100;
+      } else if (daysSincePurchase <= 30) {
+        refundPercentage = 50;
+      }
+      
+      const updatedUser: User = {
+        ...currentUser,
+        isPremium: false,
+        premiumPurchaseDate: undefined,
+        refundPercentage,
+        withdrawalDate: new Date().toISOString()
+      };
+      
+      setCurrentUser(updatedUser);
+      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+      
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const userIndex = users.findIndex((u: User) => u.id === currentUser.id);
+      if (userIndex !== -1) {
+        users[userIndex] = updatedUser;
+        localStorage.setItem('users', JSON.stringify(users));
+      }
+      
+      toast({
+        title: 'Premium Withdrawn',
+        description: `Your premium subscription has been cancelled with a ${refundPercentage}% refund.`,
+      });
+    } catch (err) {
+      const errorMsg = (err as Error).message;
+      setError(errorMsg);
+      toast({
+        title: 'Error',
+        description: errorMsg,
+        variant: 'destructive',
+      });
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const value: AuthContextType = {
     currentUser,
@@ -268,8 +381,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logout,
     completeProfile,
     upgradeToPremium,
-    cancelPremium: async () => {}, // Implementation would go here
-    withdrawPremium: async () => {}, // Implementation would go here
+    cancelPremium,
+    withdrawPremium,
     addBooking,
     isAuthenticated: !!currentUser,
     isLoading,
