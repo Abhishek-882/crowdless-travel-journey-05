@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { 
@@ -28,8 +27,6 @@ import { TripItineraryDay, HotelType } from '../types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useTripPlanning } from '../context/TripPlanningContext';
-import { getTransportAmenities } from '../utils/tripPlanningUtils';
-import { calculateTravelDetails } from '../utils/travelCalculator';
 
 interface TripItineraryProps {
   itinerary: TripItineraryDay[];
@@ -43,107 +40,137 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
   isPremium = false
 }) => {
   const [expandedDays, setExpandedDays] = useState<Record<number, boolean>>({});
-  
+  const { getTransportAmenities } = useTripPlanning();
+
   // Calculate travel details based on the transport type
-  const getTravelDetails = (type: string) => {
-    // Use updated calculateTravelDetails function with transport types
-    const details = calculateTravelDetails(100, type as 'bus' | 'train' | 'flight' | 'car');
-    
+  const calculateTravelDetails = (type: string) => {
     switch(type) {
       case 'bus':
         return {
+          speed: '50 km/h',
+          cost: '₹1.5/km',
           advantages: ['Economical', 'Multiple stops', 'No parking needed'],
           overnight: 'Sleeper available for long routes',
-          icon: <Bus className="h-5 w-5" />,
-          transportTypes: details.transportTypes
+          icon: <Bus className="h-5 w-5" />
         };
       case 'train':
         return {
+          speed: '80 km/h',
+          cost: '₹2/km',
           advantages: ['Comfortable', 'Scenic views', 'No traffic'],
           overnight: 'Sleeper/AC options available',
-          icon: <Train className="h-5 w-5" />,
-          transportTypes: details.transportTypes
+          icon: <Train className="h-5 w-5" />
         };
       case 'flight':
         return {
+          speed: '500 km/h',
+          cost: '₹8/km',
           advantages: ['Fastest option', 'Best for long distances', 'Time-saving'],
           overnight: 'Red-eye flights available',
-          icon: <Plane className="h-5 w-5" />,
-          transportTypes: details.transportTypes
+          icon: <Plane className="h-5 w-5" />
         };
       case 'car':
         return {
+          speed: '60 km/h',
+          cost: '₹3/km',
           advantages: ['Flexible schedule', 'Door-to-door convenience', 'Privacy'],
           overnight: 'Not recommended, find hotels',
-          icon: <Car className="h-5 w-5" />,
-          transportTypes: details.transportTypes
+          icon: <Car className="h-5 w-5" />
         };
       default:
         return {
+          speed: '60 km/h',
+          cost: '₹3/km',
           advantages: ['Flexible schedule', 'Door-to-door convenience', 'Privacy'],
           overnight: 'Not recommended, find hotels',
-          icon: <Car className="h-5 w-5" />,
-          transportTypes: ['Standard']
+          icon: <Car className="h-5 w-5" />
         };
     }
   };
 
-  // Render hotel information
-  const renderHotelInfo = (hotelData: any) => {
-    // If it's already a string or undefined/null, just return a placeholder
-    if (typeof hotelData === 'string' || !hotelData) {
-      return (
-        <div className="border rounded-lg p-3 bg-gray-50">
-          <div className="flex justify-between">
-            <div>
-              <p className="font-medium">Hotel info unavailable</p>
-            </div>
-          </div>
-        </div>
-      );
-    }
+  // Generate premium insights for each day
+  const generateDailyPremiumInsights = (destinationName: string, day: number) => {
+    const hash = destinationName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + day;
+    const crowdPercent = 20 + (hash % 60);
+    const bestTime = `${8 + (hash % 4)}:${hash % 2 === 0 ? '00' : '30'} AM`;
     
-    // If it's a hotel object, render its details
-    const hotel = hotelData as HotelType;
-    return (
-      <div className="border rounded-lg p-3 bg-gray-50">
-        <div className="flex justify-between">
-          <div>
-            <p className="font-medium">{hotel.name}</p>
-            {hotel.location && (
-              <div className="flex items-center mt-1 text-sm text-gray-600">
-                <MapPin className="h-4 w-4 mr-1" />
-                <span>{hotel.location.distanceFromCenter.toFixed(1)} km from center</span>
-              </div>
-            )}
-            <div className="flex items-center mt-1">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Star
-                  key={i}
-                  className={`h-4 w-4 ${i < hotel.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-200'}`}
-                />
-              ))}
-            </div>
+    const secretTips = [
+      `Ask for the ${destinationName.split(' ')[0]} special at local cafes`,
+      `The ${['north', 'south', 'east', 'west'][hash % 4]} entrance has shorter lines`,
+      `Free ${['guided tour', 'wifi', 'map', 'snack'][hash % 4]} available near main gate`,
+      `Best photo spot: ${['sunrise', 'sunset', 'golden hour', 'blue hour'][hash % 4]} at ${['main gate', 'east side', 'west garden', 'viewpoint'][hash % 4]}`,
+      `${['Local guide', 'Hotel concierge', 'Tourist info', 'Park ranger'][hash % 4]} knows hidden gems`
+    ];
+    
+    return {
+      bestTime: `Best visit time: ${bestTime} (${crowdPercent}% crowd)`,
+      secretTip: secretTips[hash % secretTips.length],
+      crowdPrediction: Array.from({ length: 4 }).map((_, i) => ({
+        time: `${9 + i * 3}:00 ${i < 2 ? 'AM' : 'PM'}`,
+        level: ['low', 'medium', 'high', 'peak'][(hash + i) % 4] as 'low' | 'medium' | 'high',
+        percentage: 20 + (hash + i * 10) % 60
+      }))
+    };
+  };
+
+  // Render hotel information
+  const renderHotelInfo = (hotel: HotelType) => (
+    <div className="border rounded-lg p-3 bg-gray-50">
+      <div className="flex justify-between">
+        <div>
+          <p className="font-medium">{hotel.name}</p>
+          <div className="flex items-center mt-1 text-sm text-gray-600">
+            <MapPin className="h-4 w-4 mr-1" />
+            <span>{hotel.location.distanceFromCenter.toFixed(1)} km from center</span>
           </div>
-          <div className="text-right">
-            <div className="text-sm font-medium">
-              ₹{hotel.pricePerPerson}/person
-            </div>
-            {hotel.checkInTime && (
-              <div className="text-xs text-gray-500 mt-1">
-                {hotel.checkInTime} - {hotel.checkOutTime}
-              </div>
-            )}
+          <div className="flex items-center mt-1">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Star
+                key={i}
+                className={`h-4 w-4 ${i < hotel.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-200'}`}
+              />
+            ))}
           </div>
         </div>
-        <div className="flex flex-wrap gap-1 mt-2">
-          {hotel.amenities.slice(0, 4).map((amenity, i) => (
-            <span key={i} className="text-xs bg-gray-100 px-2 py-0.5 rounded-full">
-              {amenity}
-            </span>
-          ))}
+        <div className="text-right">
+          <div className="text-sm font-medium">
+            ₹{hotel.pricePerPerson}/person
+          </div>
+          {hotel.checkInTime && (
+            <div className="text-xs text-gray-500 mt-1">
+              {hotel.checkInTime} - {hotel.checkOutTime}
+            </div>
+          )}
         </div>
       </div>
+      <div className="flex flex-wrap gap-1 mt-2">
+        {hotel.amenities.slice(0, 4).map((amenity, i) => (
+          <span key={i} className="text-xs bg-gray-100 px-2 py-0.5 rounded-full">
+            {amenity}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+
+  // Render crowd level indicator
+  const renderCrowdLevel = (level: string, percentage: number) => {
+    let color = 'text-green-600';
+    let icon = <Sun className="h-4 w-4" />;
+    
+    if (percentage > 60) {
+      color = 'text-red-600';
+      icon = <Umbrella className="h-4 w-4" />;
+    } else if (percentage > 30) {
+      color = 'text-amber-600';
+      icon = <Cloud className="h-4 w-4" />;
+    }
+    
+    return (
+      <span className={`flex items-center gap-1 ${color}`}>
+        {icon}
+        <span>{level} ({percentage}%)</span>
+      </span>
     );
   };
 
@@ -171,7 +198,7 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
   };
 
   const baseHotel = findBaseHotel();
-  const travelDetails = getTravelDetails(transportType);
+  const travelDetails = calculateTravelDetails(transportType);
 
   if (!itinerary || itinerary.length === 0) {
     return (
@@ -221,22 +248,13 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
               </div>
               <div className="mt-1 text-sm text-gray-600">
                 <div className="grid grid-cols-[80px_1fr] gap-1 text-xs">
+                  <span className="text-gray-500">Average Speed:</span>
+                  <span>{travelDetails.speed}</span>
+                  <span className="text-gray-500">Cost per km:</span>
+                  <span>{travelDetails.cost}</span>
                   <span className="text-gray-500">Best for:</span>
                   <span>{travelDetails.advantages[0]}</span>
-                  <span className="text-gray-500">Types:</span>
-                  <span>{travelDetails.transportTypes.slice(0, 2).join(', ')}</span>
                 </div>
-              </div>
-            </div>
-            
-            <div className="flex-1 min-w-[150px]">
-              <h4 className="text-xs uppercase text-gray-500 font-semibold">Transport Types</h4>
-              <div className="mt-1 flex flex-wrap gap-1">
-                {travelDetails.transportTypes.map((type, i) => (
-                  <span key={i} className="text-xs bg-gray-100 px-2 py-0.5 rounded-full">
-                    {type}
-                  </span>
-                ))}
               </div>
             </div>
             
@@ -250,6 +268,22 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
                 ))}
               </div>
             </div>
+            
+            {isPremium && (
+              <div className="flex-1 min-w-[150px]">
+                <h4 className="text-xs uppercase text-gray-500 font-semibold">Premium Insights</h4>
+                <ul className="mt-1 text-xs space-y-1 text-gray-600">
+                  <li className="flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3 text-amber-500" /> 
+                    Best time to travel: Off-peak hours
+                  </li>
+                  <li className="flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3 text-amber-500" /> 
+                    Crowd prediction: Moderate
+                  </li>
+                </ul>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -264,6 +298,8 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
           const nextDest = itinerary.find(
             (d, i) => i > index && d.destinationId !== day.destinationId
           );
+          
+          const premiumInsights = isPremium ? generateDailyPremiumInsights(day.destinationName, day.day) : null;
           
           return (
             <Card 
@@ -321,15 +357,13 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
                               <div>
                                 <p className="font-medium">Transit Journey</p>
                                 <p className="text-sm text-gray-500">
-                                  {day.transportDetails?.fromDestination || ''} → {day.destinationName}
+                                  {day.destinationName}
                                 </p>
                               </div>
                             </div>
-                            <div>
-                              <Badge variant="outline" className="bg-blue-50">
-                                {day.transportDetails?.distance ? `${day.transportDetails.distance} km` : ''}
-                              </Badge>
-                            </div>
+                            <Badge variant="outline" className="bg-blue-50">
+                              ~{day.transportDetails?.duration || '8 hours'}
+                            </Badge>
                           </div>
                           
                           <div className="ml-4 pl-7 border-l-2 border-dashed border-blue-200 space-y-3">
@@ -338,7 +372,7 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
                                 <MapPin className="h-3 w-3 text-green-600" />
                               </div>
                               <p className="text-sm">
-                                <span className="font-medium">Departure:</span> {day.transportDetails?.departureTime || '09:00 AM'}
+                                <span className="font-medium">Departure:</span> {day.departureTime}
                               </p>
                             </div>
                             
@@ -358,22 +392,22 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
                                 <MapPin className="h-3 w-3 text-red-600" />
                               </div>
                               <p className="text-sm">
-                                <span className="font-medium">Arrival:</span> {day.transportDetails?.arrivalTime || '05:00 PM'}
+                                <span className="font-medium">Arrival:</span> {day.arrivalTime}
                               </p>
                             </div>
                           </div>
                         </div>
                         
-                        <div className="mt-3">
-                          <h4 className="font-medium text-sm mb-2">Transport Types</h4>
-                          <div className="flex flex-wrap gap-2">
-                            {travelDetails.transportTypes.map((type, i) => (
-                              <div key={i} className="border rounded-md p-2 text-sm flex-1 min-w-[120px] bg-white">
-                                <p className="font-medium">{type}</p>
-                              </div>
-                            ))}
+                        {isPremium && (
+                          <div className="bg-amber-50 border border-amber-200 p-3 rounded-md mt-3">
+                            <p className="text-sm font-medium text-amber-800">Premium Travel Advice</p>
+                            <ul className="text-xs text-amber-700 mt-1 space-y-1 list-disc pl-4">
+                              <li>Recommended rest stops marked with local attractions</li>
+                              <li>Best photo opportunities along the route</li>
+                              <li>Traffic prediction: Light traffic expected</li>
+                            </ul>
                           </div>
-                        </div>
+                        )}
                       </div>
                     ) : (
                       <div className="space-y-4">
@@ -398,6 +432,25 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
                           <div>
                             <h4 className="font-medium text-sm mb-2">Recommended Hotel</h4>
                             {renderHotelInfo(day.hotels[0])}
+                          </div>
+                        )}
+                        
+                        {isPremium && premiumInsights && (
+                          <div className="bg-blue-50 border border-blue-200 p-3 rounded-md">
+                            <h4 className="text-sm font-medium text-blue-800 mb-2">
+                              Premium Insights for {day.destinationName}
+                            </h4>
+                            <p className="text-xs text-blue-700 mb-2">{premiumInsights.secretTip}</p>
+                            
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-blue-700">Crowd Prediction:</p>
+                              {premiumInsights.crowdPrediction.map((pred, i) => (
+                                <div key={i} className="flex justify-between text-xs text-blue-600">
+                                  <span>{pred.time}</span>
+                                  {renderCrowdLevel(pred.level, pred.percentage)}
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                         
