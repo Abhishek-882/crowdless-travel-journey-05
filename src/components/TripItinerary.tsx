@@ -27,6 +27,7 @@ import { TripItineraryDay, HotelType } from '../types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useTripPlanning } from '../context/TripPlanningContext';
+import { getTransportAmenities } from '../utils/tripPlanningUtils';
 
 interface TripItineraryProps {
   itinerary: TripItineraryDay[];
@@ -40,9 +41,7 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
   isPremium = false
 }) => {
   const [expandedDays, setExpandedDays] = useState<Record<number, boolean>>({});
-   // Import getTransportAmenities from utils instead of context
-  const { renderHotelInfo, getTransportAmenities } = require('../utils/tripPlanningUtils');
-
+  
   // Calculate travel details based on the transport type
   const calculateTravelDetails = (type: string) => {
     switch(type) {
@@ -115,10 +114,22 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
   };
 
   // Render hotel information
- // Use the imported renderHotelInfo function
-  const renderHotelInfoCard = (hotelInput: HotelType | string) => {
-    const hotel = renderHotelInfo(hotelInput);
+  const renderHotelInfo = (hotelData: any) => {
+    // If it's already a string or undefined/null, just return a placeholder
+    if (typeof hotelData === 'string' || !hotelData) {
+      return (
+        <div className="border rounded-lg p-3 bg-gray-50">
+          <div className="flex justify-between">
+            <div>
+              <p className="font-medium">Hotel info unavailable</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
     
+    // If it's a hotel object, render its details
+    const hotel = hotelData as HotelType;
     return (
       <div className="border rounded-lg p-3 bg-gray-50">
         <div className="flex justify-between">
@@ -160,7 +171,7 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
       </div>
     );
   };
-  
+
   // Render crowd level indicator
   const renderCrowdLevel = (level: string, percentage: number) => {
     let color = 'text-green-600';
@@ -439,7 +450,7 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
                         {day.hotels && day.hotels.length > 0 && (
                           <div>
                             <h4 className="font-medium text-sm mb-2">Recommended Hotel</h4>
-                           {renderHotelInfoCard(day.hotels[0])}
+                            {renderHotelInfo(day.hotels[0])}
                           </div>
                         )}
                         
