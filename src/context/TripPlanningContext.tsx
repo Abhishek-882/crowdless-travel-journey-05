@@ -33,7 +33,6 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const storedTripPlans = localStorage.getItem('tripPlans');
       if (storedTripPlans) {
         const parsedPlans = JSON.parse(storedTripPlans);
-        // Validate parsed data
         if (Array.isArray(parsedPlans)) {
           setTripPlans(parsedPlans);
         } else {
@@ -115,6 +114,13 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
       .map(hotel => destination ? calculateHotelProximity(hotel, destination) : hotel);
   }, [destinations, calculateHotelProximity]);
 
+  // Get nearby hotels sorted by distance
+  const getNearbyHotels = useCallback((destinationId: string, limit = 3) => {
+    return getHotelsByDestination(destinationId)
+      .sort((a, b) => a.location.distanceFromCenter - b.location.distanceFromCenter)
+      .slice(0, limit);
+  }, [getHotelsByDestination]);
+
   // Get optimal hotels that balance proximity across destinations
   const getOptimalHotels = useCallback((destinationIds: string[]): HotelType[] => {
     const destinationHotels = destinationIds.map(destId => {
@@ -158,15 +164,67 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
         toName: to.name,
         distanceKm: distance,
         travelTimesByTransport: {
-          bus: Math.round(distance / 50 * 1.2), // 50 km/h with 20% buffer
-          train: Math.round(distance / 80 * 1.1), // 80 km/h with 10% buffer
-          flight: Math.round(distance / 500 * 1.5), // 500 km/h with airport time
-          car: Math.round(distance / 60 * 1.3) // 60 km/h with traffic
+          bus: Math.round(distance / 50 * 1.2),
+          train: Math.round(distance / 80 * 1.1),
+          flight: Math.round(distance / 500 * 1.5),
+          car: Math.round(distance / 60 * 1.3)
         }
       });
     }
     return matrix;
   }, [destinations, calculateDistanceBetweenDestinations]);
+
+  // Generate optimal itinerary with premium features
+  const generateOptimalItinerary = useCallback((options: {
+    destinationIds: string[];
+    transportType: 'bus' | 'train' | 'flight' | 'car';
+    numberOfDays: number;
+    startDate: Date;
+    travelStyle?: 'base-hotel' | 'mobile';
+    isPremium?: boolean;
+  }): TripItineraryDay[] => {
+    const selectedDestinations = options.destinationIds
+      .map(id => destinations.find(dest => dest.id === id))
+      .filter(Boolean) as Destination[];
+    
+    if (!selectedDestinations.length) return [];
+    
+    const distanceMatrix = getDistanceMatrix(options.destinationIds);
+    const itinerary: TripItineraryDay[] = [];
+    let currentDate = new Date(options.startDate);
+    
+    // Create itinerary days
+    for (let i = 0; i < options.numberOfDays; i++) {
+      const destIndex = i % selectedDestinations.length;
+      const destination = selectedDestinations[destIndex];
+      
+      const detailedSchedule = [
+        { time: '08:00', activity: 'Breakfast', location: `Hotel in ${destination.name}` },
+        { time: '09:30', activity: `Explore ${destination.name}`, location: destination.name },
+        { time: '12:30', activity: 'Lunch', location: `Restaurant in ${destination.name}` },
+        { time: '14:00', activity: `Visit ${destination.attractions?.[0] || 'local attractions'}`, location: destination.name },
+        { time: '18:00', activity: 'Dinner', location: `Restaurant in ${destination.name}` }
+      ];
+      
+      itinerary.push({
+        day: i + 1,
+        date: new Date(currentDate),
+        destinationId: destination.id,
+        destinationName: destination.name,
+        activities: [
+          `Explore ${destination.name}`,
+          `Visit ${destination.attractions?.[0] || 'local attractions'}`
+        ],
+        isTransitDay: false,
+        detailedSchedule,
+        hotels: getOptimalHotels([destination.id])
+      });
+      
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    return itinerary;
+  }, [destinations, getDistanceMatrix, getOptimalHotels]);
 
   // Save trip plan with validation
   const saveTripPlan = useCallback(async (tripPlanData: Omit<TripPlan, 'id' | 'createdAt'>): Promise<string> => {
@@ -174,7 +232,6 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setLoading(true);
 
     try {
-      // Validate required fields
       if (!tripPlanData.selectedDestinations?.length) {
         throw new Error('At least one destination is required');
       }
@@ -182,10 +239,8 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const newTripPlanId = `trip_${uuidv4()}`;
       const transportType = tripPlanData.transportType || 'car';
       
-      // Calculate optimal hotels
       const optimalHotels = getOptimalHotels(tripPlanData.selectedDestinations);
       
-      // Generate itinerary
       const itinerary = generateOptimalItinerary({
         destinationIds: tripPlanData.selectedDestinations,
         transportType,
@@ -195,7 +250,6 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
         isPremium: tripPlanData.isPremium
       });
       
-      // Calculate average hotel proximity score
       const avgProximityScore = optimalHotels.reduce((sum, hotel) => 
         sum + hotel.location.proximityScore, 0) / optimalHotels.length;
 
@@ -206,11 +260,7 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
         transportType,
         selectedHotels: optimalHotels,
         itinerary,
-        hotelProximityScore: avgProximityScore,
-        baseHotel: optimalHotels.find(h => 
-          tripPlanData.travelStyle === 'base-hotel' && 
-          h.location.proximityScore === Math.max(...optimalHotels.map(h => h.location.proximityScore))
-        )?.name
+        hotelProximityScore: avgProximityScore
       };
 
       setTripPlans(prev => [...prev, newTripPlan]);
@@ -234,22 +284,20 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } finally {
       setLoading(false);
     }
-  }, [getOptimalHotels, saveBookingTripPlan, toast]);
-
-  // Other context methods (getUserTripPlans, getTripPlanById, etc.) would go here...
+  }, [getOptimalHotels, generateOptimalItinerary, saveBookingTripPlan, toast]);
 
   // Get user trip plans
-  const getUserTripPlans = (userId: string) => {
+  const getUserTripPlans = useCallback((userId: string) => {
     return tripPlans.filter(plan => plan.userId === userId);
-  };
+  }, [tripPlans]);
 
   // Get trip plan by ID
-  const getTripPlanById = (id: string) => {
+  const getTripPlanById = useCallback((id: string) => {
     return tripPlans.find(plan => plan.id === id);
-  };
+  }, [tripPlans]);
 
   // Cancel trip plan
-  const cancelTripPlan = async (tripPlanId: string) => {
+  const cancelTripPlan = useCallback(async (tripPlanId: string) => {
     setLoading(true);
     try {
       setTripPlans(prev => prev.filter(plan => plan.id !== tripPlanId));
@@ -267,25 +315,10 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } finally {
       setLoading(false);
     }
-  };
-
-  // Get hotels by destination with proximity data
-  const getHotelsByDestination = (destinationId: string): HotelType[] => {
-    const destination = destinations.find(d => d.id === destinationId);
-    return hotels
-      .filter(hotel => hotel.destinationId === destinationId)
-      .map(hotel => destination ? calculateHotelProximity(hotel, destination) : hotel);
-  };
-
-  // Get nearby hotels sorted by distance
-  const getNearbyHotels = (destinationId: string, limit = 3) => {
-    return getHotelsByDestination(destinationId)
-      .sort((a, b) => a.location.distanceFromCenter - b.location.distanceFromCenter)
-      .slice(0, limit);
-  };
+  }, [toast]);
 
   // Get transport amenities
-  const getTransportAmenities = (type: string, isOvernight: boolean) => {
+  const getTransportAmenities = useCallback((type: string, isOvernight: boolean) => {
     const base = {
       'bus': ['AC', 'Seats'],
       'train': ['Dining', 'Seats'],
@@ -293,62 +326,160 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
       'car': ['Privacy', 'Flexibility']
     }[type as 'bus' | 'train' | 'flight' | 'car'] || [];
     return isOvernight ? [...base, 'Overnight option'] : base;
-  };
+  }, []);
+
+  // Calculate trip costs
+  const calculateTripCost = useCallback((options: {
+    destinationIds: string[];
+    guideIds: string[];
+    hotelType: 'budget' | 'standard' | 'luxury';
+    transportType: 'bus' | 'train' | 'flight' | 'car';
+    numberOfDays: number;
+    numberOfPeople: number;
+  }) => {
+    const selectedDestinations = options.destinationIds
+      .map(id => destinations.find(d => d.id === id))
+      .filter(Boolean) as Destination[];
+    const destinationsCost = selectedDestinations.reduce((sum, dest) => sum + (dest.price || 0), 0) * options.numberOfPeople;
+    
+    const hotelCostPerDay = hotels
+      .filter(h => options.destinationIds.includes(h.destinationId) && h.type === options.hotelType)
+      .reduce((sum, h) => sum + h.pricePerPerson, 0) / options.destinationIds.length;
+    const hotelsCost = hotelCostPerDay * options.numberOfPeople * options.numberOfDays;
+    
+    const transportCost = transports
+      .filter(t => t.type === options.transportType)
+      .reduce((sum, t) => sum + t.pricePerPerson, 0) * options.numberOfPeople;
+    
+    const guidesCost = guides
+      .filter(g => options.guideIds.includes(g.id))
+      .reduce((sum, g) => sum + g.pricePerDay, 0) * options.numberOfDays;
+    
+    return {
+      destinationsCost,
+      hotelsCost,
+      transportCost,
+      guidesCost,
+      totalCost: destinationsCost + hotelsCost + transportCost + guidesCost
+    };
+  }, [destinations]);
+
+  // Check trip feasibility
+  const checkTripFeasibility = useCallback((options: {
+    destinationIds: string[];
+    transportType: 'bus' | 'train' | 'flight' | 'car';
+    numberOfDays: number;
+  }) => {
+    const distanceMatrix = getDistanceMatrix(options.destinationIds);
+    const totalDistance = distanceMatrix.reduce((sum, segment) => sum + segment.distanceKm, 0);
+    const travelHours = distanceMatrix.reduce((sum, segment) => 
+      sum + segment.travelTimesByTransport[options.transportType], 0);
+    
+    const daysNeeded = Math.ceil(travelHours / 8) + options.destinationIds.length;
+    
+    return {
+      feasible: options.numberOfDays >= daysNeeded,
+      daysNeeded,
+      daysShort: options.numberOfDays < daysNeeded ? daysNeeded - options.numberOfDays : undefined,
+      breakdown: distanceMatrix.map(segment => ({
+        fromId: segment.fromId,
+        toId: segment.toId,
+        fromName: segment.fromName,
+        toName: segment.toName,
+        distanceKm: segment.distanceKm,
+        travelHours: segment.travelTimesByTransport[options.transportType]
+      })),
+      totalDistance,
+      totalTravelHours: travelHours
+    };
+  }, [getDistanceMatrix]);
+
+  // Get suggested transport
+  const getSuggestedTransport = useCallback((
+    destinationIds: string[], 
+    numberOfDays: number,
+    isPremium?: boolean
+  ) => {
+    const distanceMatrix = getDistanceMatrix(destinationIds);
+    const totalDistance = distanceMatrix.reduce((sum, segment) => sum + segment.distanceKm, 0);
+    const totalTravelHours = {
+      bus: distanceMatrix.reduce((sum, segment) => sum + segment.travelTimesByTransport.bus, 0),
+      train: distanceMatrix.reduce((sum, segment) => sum + segment.travelTimesByTransport.train, 0),
+      flight: distanceMatrix.reduce((sum, segment) => sum + segment.travelTimesByTransport.flight, 0),
+      car: distanceMatrix.reduce((sum, segment) => sum + segment.travelTimesByTransport.car, 0)
+    };
+    
+    let recommendedType: 'bus' | 'train' | 'flight' | 'car' = 'car';
+    let reasoning = '';
+    
+    if (totalDistance > 1000) {
+      recommendedType = 'flight';
+      reasoning = 'Best for long distances over 1000km';
+    } else if (totalDistance > 300) {
+      recommendedType = 'train';
+      reasoning = 'Comfortable for medium distances';
+    } else if (numberOfDays > 7) {
+      recommendedType = 'car';
+      reasoning = 'Flexibility for longer trips';
+    } else {
+      recommendedType = 'bus';
+      reasoning = 'Economical for short trips';
+    }
+    
+    const sightseeingTime = (numberOfDays * 8) - totalTravelHours[recommendedType];
+    
+    return {
+      recommendedType,
+      alternativeType: recommendedType === 'flight' ? 'train' : 'car',
+      reasoning,
+      totalDistanceKm: totalDistance,
+      totalTravelTimeHours: totalTravelHours[recommendedType],
+      timeForSightseeing: sightseeingTime,
+      isRealistic: sightseeingTime > 0,
+      premiumAdvantages: isPremium ? [
+        'Priority boarding',
+        'Extra luggage allowance',
+        'Flexible cancellation'
+      ] : undefined
+    };
+  }, [getDistanceMatrix]);
 
   return (
-  <TripPlanningContext.Provider
-    value={{
-      hotels,
-      transports,
-      guides,
-      tripPlans,
-      loading,
-      error,
-      getHotelsByDestination, // Only reference it once here
-      getGuidesByDestination: (destId) => guides.filter(g => g.destinationId === destId),
-      calculateTripCost: () => ({ 
-        totalCost: 0, 
-        hotelsCost: 0, 
-        transportCost: 0, 
-        guidesCost: 0 
-      }),
-      saveTripPlan,
-      getUserTripPlans: (userId) => tripPlans.filter(p => p.userId === userId),
-      getTripPlanById: (id) => tripPlans.find(p => p.id === id),
-      cancelTripPlan: async () => {},
-      checkTripFeasibility: () => ({ 
-        feasible: true, 
-        daysNeeded: 1, 
-        breakdown: [] 
-      }),
-      generateOptimalItinerary,
-      calculateDistanceBetweenDestinations,
-      getDistanceMatrix,
-      getSuggestedTransport: () => ({
-        recommendedType: 'car',
-        reasoning: '',
-        totalDistanceKm: 0,
-        totalTravelTimeHours: 0,
-        timeForSightseeing: 0,
-        isRealistic: true
-      }),
-      getTransportAmenities: (type, isOvernight) => {
-        const base = {
-          'bus': ['AC', 'Seats'],
-          'train': ['Dining', 'Seats'],
-          'flight': ['Service', 'Meals'],
-          'car': ['Privacy', 'Flexibility']
-        }[type as 'bus' | 'train' | 'flight' | 'car'] || [];
-        return isOvernight ? [...base, 'Overnight option'] : base;
-      },
-      getOptimalHotels,
-      getNearbyHotels: (destinationId, limit = 3) => 
-        getHotelsByDestination(destinationId)
-          .sort((a, b) => a.location.distanceFromCenter - b.location.distanceFromCenter)
-          .slice(0, limit),
-      calculateHotelProximity
-    }}
-  >
-    {children}
-  </TripPlanningContext.Provider>
-);
+    <TripPlanningContext.Provider
+      value={{
+        hotels,
+        transports,
+        guides,
+        tripPlans,
+        loading,
+        error,
+        getHotelsByDestination,
+        getGuidesByDestination: (destId) => guides.filter(g => g.destinationId === destId),
+        calculateTripCost,
+        saveTripPlan,
+        getUserTripPlans,
+        getTripPlanById,
+        cancelTripPlan,
+        checkTripFeasibility,
+        generateOptimalItinerary,
+        calculateDistanceBetweenDestinations,
+        getDistanceMatrix,
+        getSuggestedTransport,
+        getTransportAmenities,
+        getOptimalHotels,
+        getNearbyHotels,
+        calculateHotelProximity
+      }}
+    >
+      {children}
+    </TripPlanningContext.Provider>
+  );
+};
+
+export const useTripPlanning = () => {
+  const context = useContext(TripPlanningContext);
+  if (context === undefined) {
+    throw new Error('useTripPlanning must be used within a TripPlanningProvider');
+  }
+  return context;
+};
