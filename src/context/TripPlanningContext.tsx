@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
@@ -16,6 +17,7 @@ import { guides } from '../data/guides';
 import { useToast } from '../hooks/use-toast';
 import { useBookings } from './BookingContext';
 import { useDestinations } from './DestinationContext';
+import { generateOptimalItinerary as generateItinerary } from '../utils/travelCalculator';
 
 const TripPlanningContext = createContext<TripPlanningContextType | undefined>(undefined);
 
@@ -164,10 +166,10 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
         toName: to.name,
         distanceKm: distance,
         travelTimesByTransport: {
-          bus: Math.round(distance / 50 * 1.2),
-          train: Math.round(distance / 80 * 1.1),
-          flight: Math.round(distance / 500 * 1.5),
-          car: Math.round(distance / 60 * 1.3)
+          bus: Math.round(distance / 45),
+          train: Math.round(distance / 60),
+          flight: Math.round(distance / 500) + 1.5, // Adding 1.5 hours for boarding/security
+          car: Math.round(distance / 50)
         }
       });
     }
@@ -183,48 +185,13 @@ export const TripPlanningProvider: React.FC<{ children: React.ReactNode }> = ({ 
     travelStyle?: 'base-hotel' | 'mobile';
     isPremium?: boolean;
   }): TripItineraryDay[] => {
-    const selectedDestinations = options.destinationIds
-      .map(id => destinations.find(dest => dest.id === id))
-      .filter(Boolean) as Destination[];
-    
-    if (!selectedDestinations.length) return [];
-    
-    const distanceMatrix = getDistanceMatrix(options.destinationIds);
-    const itinerary: TripItineraryDay[] = [];
-    let currentDate = new Date(options.startDate);
-    
-    // Create itinerary days
-    for (let i = 0; i < options.numberOfDays; i++) {
-      const destIndex = i % selectedDestinations.length;
-      const destination = selectedDestinations[destIndex];
-      
-      const detailedSchedule = [
-        { time: '08:00', activity: 'Breakfast', location: `Hotel in ${destination.name}` },
-        { time: '09:30', activity: `Explore ${destination.name}`, location: destination.name },
-        { time: '12:30', activity: 'Lunch', location: `Restaurant in ${destination.name}` },
-        { time: '14:00', activity: `Visit ${destination.attractions?.[0] || 'local attractions'}`, location: destination.name },
-        { time: '18:00', activity: 'Dinner', location: `Restaurant in ${destination.name}` }
-      ];
-      
-      itinerary.push({
-        day: i + 1,
-        date: new Date(currentDate),
-        destinationId: destination.id,
-        destinationName: destination.name,
-        activities: [
-          `Explore ${destination.name}`,
-          `Visit ${destination.attractions?.[0] || 'local attractions'}`
-        ],
-        isTransitDay: false,
-        detailedSchedule,
-        hotels: getOptimalHotels([destination.id])
-      });
-      
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-    
-    return itinerary;
-  }, [destinations, getDistanceMatrix, getOptimalHotels]);
+    // Use the improved function from travelCalculator.ts
+    return generateItinerary(
+      options,
+      destinations,
+      calculateDistanceBetweenDestinations
+    );
+  }, [destinations, calculateDistanceBetweenDestinations]);
 
   // Save trip plan with validation
   const saveTripPlan = useCallback(async (tripPlanData: Omit<TripPlan, 'id' | 'createdAt'>): Promise<string> => {
