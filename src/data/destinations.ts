@@ -28,18 +28,9 @@ const generateCrowdData = () => {
 };
 
 // Helper function for consistent pricing structure
-const createPrice = (
-  adult: number, 
-  child: number = Math.floor(adult * 0.6), 
-  foreigner: number = adult * 4,
-  includes: string[] = []
-) => ({
-  adult,
-  child,
-  foreigner,
-  includes
-});
-
+const getSimplePrice = (
+  adult: number
+) => adult;
 export const indiaDestinations: Destination[] = [
   {
     id: 'dest_001',
@@ -60,7 +51,7 @@ export const indiaDestinations: Destination[] = [
       '20:00': 20,
       '22:00': 10
     },
-    price: createPrice(1100, 600, 2000, ['Main mausoleum', 'Gardens', 'Mosque']),
+    price: 1100,
     rating: 4.8,
     coordinates: {
       lat: 27.1751,
@@ -88,7 +79,7 @@ export const indiaDestinations: Destination[] = [
       '20:00': 15,
       '22:00': 5
     },
-    price: createPrice(700, 400, 1500, ['Palace complex', 'Museum', 'Audio guide']),
+    price: 700,
     rating: 4.5,
     coordinates: {
       lat: 26.9258,
@@ -116,7 +107,7 @@ export const indiaDestinations: Destination[] = [
       '20:00': 65,
       '22:00': 50
     },
-    price: createPrice(200, 100, 800, ['Beach access']),
+    price: 200,
     rating: 4.7,
     coordinates: {
       lat: 15.2993,
@@ -144,7 +135,7 @@ export const indiaDestinations: Destination[] = [
       '20:00': 90,
       '22:00': 50
     },
-    price: createPrice(0, 0, 0, ['Ghat access', 'Evening aarti']),
+   price: 200,
     rating: 4.6,
     coordinates: {
       lat: 25.3176,
@@ -172,7 +163,7 @@ export const indiaDestinations: Destination[] = [
       '20:00': 30,
       '22:00': 15
     },
-    price: createPrice(300, 150, 1200, ['Tea garden tours', 'Toy train ride']),
+    price: 200,
     rating: 4.5,
     coordinates: {
       lat: 27.0360,
@@ -200,7 +191,7 @@ export const indiaDestinations: Destination[] = [
       '20:00': 30,
       '22:00': 20
     },
-    price: createPrice(1200, 600, 4800, ['Houseboat cruise', 'Meals']),
+    price: 100,
     rating: 4.9,
     coordinates: {
       lat: 9.4981,
@@ -228,7 +219,7 @@ export const indiaDestinations: Destination[] = [
       '20:00': 95,
       '22:00': 40
     },
-    price: createPrice(200, 100, 800, ['Palace tour', 'Light show']),
+    price: 150,
     rating: 4.7,
     coordinates: {
       lat: 12.3052,
@@ -256,7 +247,7 @@ export const indiaDestinations: Destination[] = [
       '20:00': 90,
       '22:00': 65
     },
-    price: createPrice(0, 0, 0, ['Temple visit', 'Community kitchen']),
+    price: 0,
     rating: 4.9,
     coordinates: {
       lat: 31.6200,
@@ -284,7 +275,7 @@ export const indiaDestinations: Destination[] = [
       '20:00': 40,
       '22:00': 15
     },
-    price: createPrice(500, 250, 2000, ['Salt desert access', 'Cultural shows']),
+    price: 200,
     rating: 4.5,
     coordinates: {
       lat: 23.7337,
@@ -312,7 +303,7 @@ export const indiaDestinations: Destination[] = [
       '20:00': 20,
       '22:00': 10
     },
-    price: createPrice(300, 150, 1200, ['Lake access', 'Permit fees']),
+    price: 50,
     rating: 4.8,
     coordinates: {
       lat: 34.1526,
@@ -329,7 +320,7 @@ export const indiaDestinations: Destination[] = [
     description: 'Famous for their nagara-style architectural symbolism and erotic sculptures, these Hindu and Jain temples are a UNESCO World Heritage site.',
     image: 'https://images.unsplash.com/photo-1600100399290-14c6048bd5a6?w=800&auto=format&fit=crop',
     crowdData: generateCrowdData(),
-    price: createPrice(500, 250, 2000, ['Temple complex', 'Audio guide']),
+    price: 0,
     rating: 4.6,
     coordinates: {
       lat: 24.8318,
@@ -346,7 +337,7 @@ export const indiaDestinations: Destination[] = [
     description: 'Home to the Royal Bengal Tiger, the Sundarbans is the largest mangrove forest in the world, offering unique wildlife experiences and boat safaris.',
     image: 'https://images.unsplash.com/photo-1590177800442-6d546a88908a?w=800&auto=format&fit=crop',
     crowdData: generateCrowdData(),
-    price: createPrice(1500, 750, 6000, ['Boat safari', 'Park entry']),
+    price: 300,
     rating: 4.7,
     coordinates: {
       lat: 21.9497,
@@ -363,7 +354,7 @@ export const indiaDestinations: Destination[] = [
     description: 'A UNESCO World Heritage Site, this high-altitude valley is known for its meadows of endemic alpine flowers and rich biodiversity.',
     image: 'https://images.unsplash.com/photo-1580977251946-c5cf22d0f42f?w=800&auto=format&fit=crop',
     crowdData: generateCrowdData(),
-    price: createPrice(600, 300, 2400, ['Park entry', 'Trekking permit']),
+    price: 200,
     rating: 4.8,
     coordinates: {
       lat: 30.7283,
@@ -380,7 +371,7 @@ export const indiaDestinations: Destination[] = [
     description: 'The ancient ruins of Vijayanagara Empire, Hampi is a UNESCO World Heritage Site with stunning temple complexes, monolithic structures, and boulder-strewn landscapes.',
     image: 'https://images.unsplash.com/photo-1613467143018-03fd56bee88d?w=800&auto=format&fit=crop',
     crowdData: generateCrowdData(),
-    price: createPrice(500, 250, 2000, ['Ruins access', 'Archaeological sites']),
+    price: 300,
     rating: 4.7,
     coordinates: {
       lat: 15.3350,
@@ -397,7 +388,7 @@ export const indiaDestinations: Destination[] = [
     description: 'Known for their pristine beaches, crystal-clear waters, and fascinating marine life, the Andaman Islands offer excellent opportunities for water sports and relaxation.',
     image: 'https://images.unsplash.com/photo-1586076585588-526649731ae6?w=800&auto=format&fit=crop',
     crowdData: generateCrowdData(),
-    price: createPrice(500, 250, 2000, ['Beach access', 'Permit fees']),
+    price: 100,
     rating: 4.9,
     coordinates: {
       lat: 11.7401,
@@ -414,7 +405,7 @@ export const indiaDestinations: Destination[] = [
     description: 'A UNESCO World Heritage Site, Kaziranga is home to the largest population of one-horned rhinoceroses in the world, along with tigers, elephants, and wild water buffaloes.',
     image: 'https://images.unsplash.com/photo-1605069574908-3bec890b61d5?w=800&auto=format&fit=crop',
     crowdData: generateCrowdData(),
-    price: createPrice(1200, 600, 4800, ['Jeep safari', 'Park entry']),
+    price: 200,
     rating: 4.8,
     coordinates: {
       lat: 26.5775,
@@ -431,7 +422,7 @@ export const indiaDestinations: Destination[] = [
     description: 'These ancient rock-cut cave temples showcase Buddhist, Hindu, and Jain monuments with intricate carvings and paintings dating back to the 2nd century BCE.',
     image: 'https://images.unsplash.com/photo-1590080552494-dcda542194a4?w=800&auto=format&fit=crop',
     crowdData: generateCrowdData(),
-    price: createPrice(600, 300, 2400, ['Cave access', 'Audio guide']),
+    price: 100,
     rating: 4.7,
     coordinates: {
       lat: 20.5518,
@@ -448,7 +439,7 @@ export const indiaDestinations: Destination[] = [
     description: 'Known as the "Scotland of India," Coorg is a misty hill station with coffee plantations, waterfalls, and lush forests offering a peaceful retreat.',
     image: 'https://images.unsplash.com/photo-1577715694662-6a778a31a978?w=800&auto=format&fit=crop',
     crowdData: generateCrowdData(),
-    price: createPrice(300, 150, 1200, ['Plantation tours', 'Nature walks']),
+    price: 500,
     rating: 4.6,
     coordinates: {
       lat: 12.4244,
@@ -465,7 +456,7 @@ export const indiaDestinations: Destination[] = [
     description: 'Famous for its sprawling tea plantations, misty hills, and cool climate, Munnar offers breathtaking views of the Western Ghats and diverse flora and fauna.',
     image: 'https://images.unsplash.com/photo-1590689860171-2e105100eac1?w=800&auto=format&fit=crop',
     crowdData: generateCrowdData(),
-    price: createPrice(400, 200, 1600, ['Tea estate tours', 'Museum entry']),
+    price: 100,
     rating: 4.7,
     coordinates: {
       lat: 10.0889,
@@ -482,7 +473,7 @@ export const indiaDestinations: Destination[] = [
     description: 'A UNESCO World Heritage Site, this 73-meter tall tower of victory is an example of Indo-Islamic architecture with intricate carvings and verses from the Quran.',
     image: 'https://images.unsplash.com/photo-1548013146-72479768bada?w=800&auto=format&fit=crop',
     crowdData: generateCrowdData(),
-    price: createPrice(350, 175, 1400, ['Minar access', 'Archaeological complex']),
+    price: 100,
     rating: 4.5,
     coordinates: {
       lat: 28.5245,
