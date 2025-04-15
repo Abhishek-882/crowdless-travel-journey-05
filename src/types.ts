@@ -1,4 +1,3 @@
-
 export type User = {
   id: string;
   email: string;
@@ -44,6 +43,20 @@ export type CrowdData = {
   [time: string]: number; // Map of time to crowd percentage (0-100)
 };
 
+export type HotelLocation = {
+  coordinates: {
+    lat: number;
+    lng: number;
+  };
+  address: string;
+  distanceFromCenter: number;
+  proximityScore: number;
+  nearbyAttractions?: {
+    name: string;
+    distance: number;
+  }[];
+};
+
 export type HotelType = {
   id: string;
   name: string;
@@ -53,6 +66,10 @@ export type HotelType = {
   type: 'budget' | 'standard' | 'luxury';
   amenities: string[];
   image: string;
+  location?: HotelLocation;
+  checkInTime?: string;
+  checkOutTime?: string;
+  contact?: string;
 };
 
 export type TransportType = {
@@ -62,6 +79,19 @@ export type TransportType = {
   pricePerPerson: number;
   travelTime: number; // in hours
   amenities: string[];
+  // Extended properties
+  busClass?: string;
+  seatType?: string;
+  class?: string;
+  berthOption?: string;
+  cabinClass?: string;
+  baggageAllowance?: string;
+  carType?: string;
+  transmission?: string;
+  operator?: string;
+  airline?: string;
+  rentalCompany?: string;
+  estimatedDuration?: string;
 };
 
 export type GuideType = {
@@ -111,7 +141,7 @@ export interface TripItineraryDay {
   destinationName: string;
   activities: string[];
   isTransitDay: boolean;
-  hotels?: string[]; // Added for hotel information
+  hotels?: HotelType[] | string[]; // Can be either hotel objects or hotel IDs
   freshUpStops?: { time: string, location: string }[]; // Added for transport fresh-up stops
   departureTime?: string; // Added for departure time
   arrivalTime?: string; // Added for arrival time
@@ -137,7 +167,7 @@ export type Destination = {
   description: string;
   image: string;
   crowdData: CrowdData;
-  price: number;
+  price: number; // Changed from complex object to simple number
   rating: number;
   coordinates: {
     lat: number;
@@ -181,6 +211,7 @@ export type DestinationContextType = {
   getBestTimeToVisit: (crowdData: CrowdData) => string;
   clearFilters: () => void;
   getDestinationById: (id: string) => Destination | undefined;
+  getEnhancedCrowdData?: (destinationId: string, crowdData: CrowdData) => CrowdData;
 };
 
 export interface BookingContextType {
@@ -273,4 +304,5 @@ export type TripPlanningContextType = {
     premiumAdvantages?: string[];
   };
   calculateDistanceBetweenDestinations: (from: Destination, to: Destination) => number;
+  getTransportAmenities?: (type: string, isOvernight: boolean) => string[];
 };
