@@ -51,12 +51,12 @@ const Profile: React.FC = () => {
   
   // Calculate booking statistics
   const upcomingBookings = userBookings.filter(b => b.status === 'confirmed');
-  const completedBookings = userBookings.filter(b => b.status === 'completed');
+  const completedBookings = userBookings.filter(b => b.status === 'confirmed' && new Date(b.checkIn) < new Date());
   const cancelledBookings = userBookings.filter(b => b.status === 'cancelled');
   
   // Format membership date
   const memberSince = currentUser 
-    ? format(new Date(currentUser.profileComplete ? currentUser.profileData?.createdAt || Date.now() : Date.now()), 'MMMM yyyy')
+    ? format(new Date(), 'MMMM yyyy')
     : '';
   
   // Premium status and dates
