@@ -96,8 +96,19 @@ export const DestinationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [destinations, searchQuery, filters]);
 
   // Get enhanced crowd data with premium features
+  import { getEnhancedCrowdData as getEnhancedCrowdDataUtil } from '../utils/destinationUtils';
+  
+  // Get enhanced crowd data with premium features
   const getEnhancedCrowdData = (destinationId: string, crowdData: CrowdData) => {
-    const hasBooking = currentUser?.bookings?.some(b => b.destinationIds.includes(destinationId));
+    const hasBooking = currentUser?.bookings?.some(bookingId => {
+      // Check if this booking is for this destination
+      const booking = localStorage.getItem(`booking_${bookingId}`);
+      if (booking) {
+        const parsedBooking = JSON.parse(booking);
+        return parsedBooking.destinationId === destinationId;
+      }
+      return false;
+    });
     
     if (!currentUser?.isPremium && !hasBooking) {
       // Return limited data for free users
@@ -109,10 +120,7 @@ export const DestinationProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
 
     // For premium users or those with bookings
-    return {
-      ...crowdData,
-      premiumInsights: hasBooking ? getBookingInsights(destinationId) : null
-    };
+    return getEnhancedCrowdDataUtil(destinationId, crowdData);
   };
 
   // Get booking insights for premium users
