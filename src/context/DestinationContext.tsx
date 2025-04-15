@@ -1,104 +1,106 @@
-
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Destination, DestinationContextType, CrowdData, CrowdLevel, DestinationFilters } from '../types';
-import { destinations } from '../data/destinations';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { Destination, DestinationContextType, CrowdData, CrowdLevel } from '../types';
+import { useToast } from '@/hooks/use-toast';
+import { indiaDestinations } from '../data/destinations';
 import { useAuth } from './AuthContext';
-import { getCurrentCrowdLevel, getBestTimeToVisit } from '../utils/helpers';
+// Import enhanced crowd data utility
+import { getEnhancedCrowdData as getEnhancedCrowdDataUtil, getPremiumInsights } from '../utils/destinationUtils';
 
-// Create the destination context
-const DestinationContext = createContext<DestinationContextType>({
-  destinations: [],
-  loading: true,
-  error: null,
-  getDestinationById: () => undefined,
-  getCurrentCrowdLevel,
-  getBestTimeToVisit
-});
+const DestinationContext = createContext<DestinationContextType | undefined>(undefined);
 
-// Provider component
 export const DestinationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [filteredDestinations, setFilteredDestinations] = useState<Destination[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [filters, setFilters] = useState<DestinationFilters>({
+  const [filters, setFiltersState] = useState<DestinationContextType['filters']>({
     crowdLevel: null,
+    minPrice: null,
+    maxPrice: null,
     state: null,
-    minPrice: 0,
-    maxPrice: 5000
   });
+  
+  const { toast } = useToast();
   const { currentUser } = useAuth();
 
-  // Simulate fetching destinations
+  // Initialize destinations
   useEffect(() => {
-    const loadDestinations = async () => {
-      setLoading(true);
+    const initDestinations = async () => {
       try {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 500));
+        const storedDestinations = localStorage.getItem('destinations');
         
-        // Destinations are already imported from data/destinations
-        setLoading(false);
+        if (storedDestinations) {
+          setDestinations(JSON.parse(storedDestinations));
+        } else {
+          setDestinations(indiaDestinations);
+          localStorage.setItem('destinations', JSON.stringify(indiaDestinations));
+        }
       } catch (err) {
+        console.error('Error initializing destinations:', err);
         setError('Failed to load destinations');
+        toast({
+          title: 'Error',
+          description: 'Failed to load destinations',
+          variant: 'destructive',
+        });
+      } finally {
         setLoading(false);
       }
     };
 
-    loadDestinations();
+    initDestinations();
   }, []);
 
-  // Filter destinations based on search query and filters
-  const filteredDestinations = React.useMemo(() => {
-    return destinations.filter(destination => {
-      // Search query filter
-      if (searchQuery) {
+  // Apply filters and search
+  useEffect(() => {
+    try {
+      let result = [...destinations];
+      
+      if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
-        const nameMatch = destination.name.toLowerCase().includes(query);
-        const cityMatch = destination.city ? destination.city.toLowerCase().includes(query) : false;
-        const stateMatch = destination.state ? destination.state.toLowerCase().includes(query) : false;
-        
-        if (!(nameMatch || cityMatch || stateMatch)) {
-          return false;
-        }
+        result = result.filter((dest) => 
+          dest.name.toLowerCase().includes(query) || 
+          dest.city.toLowerCase().includes(query) || 
+          dest.state.toLowerCase().includes(query)
+        );
       }
       
-      // Crowd level filter
       if (filters.crowdLevel) {
-        const crowdLevel = getCurrentCrowdLevel(destination.crowdData);
-        if (crowdLevel !== filters.crowdLevel) {
-          return false;
-        }
+        result = result.filter((dest) => 
+          getCurrentCrowdLevel(dest.crowdData) === filters.crowdLevel
+        );
       }
       
-      // State filter
+      if (filters.minPrice !== null) {
+        result = result.filter((dest) => dest.price >= (filters.minPrice || 0));
+      }
+      
+      if (filters.maxPrice !== null) {
+        result = result.filter((dest) => dest.price <= (filters.maxPrice || Infinity));
+      }
+      
       if (filters.state) {
-        if (destination.state !== filters.state) {
-          return false;
-        }
+        result = result.filter((dest) => 
+          dest.state.toLowerCase() === filters.state!.toLowerCase()
+        );
       }
       
-      // Price filter
-      if (filters.minPrice > 0 || filters.maxPrice < 5000) {
-        const price = typeof destination.price === 'number' ? destination.price : 0;
-        if (price < filters.minPrice || price > filters.maxPrice) {
-          return false;
-        }
-      }
-      
-      return true;
-    });
-  }, [searchQuery, filters]);
+      setFilteredDestinations(result);
+    } catch (err) {
+      console.error('Error applying filters:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to apply filters',
+        variant: 'destructive',
+      });
+    }
+  }, [destinations, searchQuery, filters]);
 
-  // Get destination by ID
-  const getDestinationById = (id: string): Destination | undefined => {
-    return destinations.find(destination => destination.id === id);
-  };
-
-  // Check if a user has booking for a destination
-  const hasBooking = (destinationId: string): boolean => {
-    if (!currentUser || !currentUser.bookings) return false;
-    
-    return currentUser.bookings.some(bookingId => {
+  // Get enhanced crowd data with premium features
+  const getEnhancedCrowdData = (destinationId: string, crowdData: CrowdData): CrowdData => {
+    const hasBooking = currentUser?.bookings?.some(bookingId => {
+      // Check if this booking is for this destination
       const booking = localStorage.getItem(`booking_${bookingId}`);
       if (booking) {
         const parsedBooking = JSON.parse(booking);
@@ -106,47 +108,126 @@ export const DestinationProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
       return false;
     });
+    
+    if (!currentUser?.isPremium && !hasBooking) {
+      // Return limited data for free users
+      const limitedData: CrowdData = {};
+      Object.keys(crowdData).forEach(key => {
+        limitedData[key] = Math.round(crowdData[key] / 10) * 10;
+      });
+      return limitedData;
+    }
+
+    // For premium users or those with bookings
+    return getEnhancedCrowdDataUtil(destinationId, crowdData);
   };
 
-  // Check if a destination is accessible to the user
-  const canAccessDestination = (destinationId: string): boolean => {
-    return currentUser?.isPremium || hasBooking(destinationId);
+  // Get booking insights for premium users
+  const getBookingInsights = (destinationId: string) => {
+    const destination = destinations.find(d => d.id === destinationId);
+    if (!destination) return null;
+
+    return getPremiumInsights(destinationId);
   };
 
-  // Clear all filters
+  // Determine current crowd level
+  const getCurrentCrowdLevel = (crowdData: CrowdData): CrowdLevel => {
+    try {
+      // For non-premium users, show simplified crowd level
+      if (!currentUser?.isPremium) {
+        const values = Object.values(crowdData);
+        const avgCrowd = values.reduce((a, b) => a + b, 0) / values.length;
+        
+        if (avgCrowd <= 40) return 'low';
+        if (avgCrowd <= 70) return 'medium';
+        return 'high';
+      }
+      
+      // For premium users, show real-time data
+      const currentHour = new Date().getHours();
+      const timeKey = `${currentHour.toString().padStart(2, '0')}:00`;
+      
+      const times = Object.keys(crowdData);
+      let closestTime = times[0];
+      let smallestDiff = 24;
+      
+      for (const time of times) {
+        const [hours] = time.split(':').map(Number);
+        const diff = Math.abs(hours - currentHour);
+        if (diff < smallestDiff) {
+          smallestDiff = diff;
+          closestTime = time;
+        }
+      }
+      
+      const crowdPercentage = crowdData[closestTime];
+      
+      if (crowdPercentage <= 40) return 'low';
+      if (crowdPercentage <= 70) return 'medium';
+      return 'high';
+    } catch (err) {
+      console.error('Error calculating crowd level:', err);
+      return 'medium';
+    }
+  };
+
+  // Get best time to visit
+  const getBestTimeToVisit = (crowdData: CrowdData): string => {
+    try {
+      let bestTime = '';
+      let lowestCrowd = 100;
+      
+      for (const [time, level] of Object.entries(crowdData)) {
+        if (level < lowestCrowd) {
+          lowestCrowd = level;
+          bestTime = time;
+        }
+      }
+      
+      const [hour] = bestTime.split(':');
+      const hourNum = parseInt(hour, 10);
+      return hourNum < 12 ? `${hourNum} AM` : hourNum === 12 ? '12 PM' : `${hourNum - 12} PM`;
+    } catch (err) {
+      console.error('Error finding best time:', err);
+      return 'Early morning';
+    }
+  };
+
+  // Other context methods
+  const setFilters = (newFilters: Partial<DestinationContextType['filters']>) => {
+    setFiltersState((prev) => ({ ...prev, ...newFilters }));
+  };
+
   const clearFilters = () => {
-    setFilters({
+    setFiltersState({
       crowdLevel: null,
+      minPrice: null,
+      maxPrice: null,
       state: null,
-      minPrice: 0,
-      maxPrice: 5000
     });
     setSearchQuery('');
   };
 
-  // Function to set filters that accepts partial updates
-  const handleSetFilters = (updatedFilters: Partial<DestinationFilters>) => {
-    setFilters(prev => ({
-      ...prev,
-      ...updatedFilters
-    }));
+  const getDestinationById = (id: string): Destination | undefined => {
+    return destinations.find((dest) => dest.id === id);
   };
 
   return (
     <DestinationContext.Provider
       value={{
         destinations,
+        filteredDestinations,
         loading,
         error,
-        getDestinationById,
+        searchQuery,
+        filters,
+        setSearchQuery,
+        setFilters,
         getCurrentCrowdLevel,
         getBestTimeToVisit,
-        searchQuery,
-        setSearchQuery,
-        filters,
-        setFilters: handleSetFilters,
         clearFilters,
-        filteredDestinations
+        getDestinationById,
+        getEnhancedCrowdData
       }}
     >
       {children}
@@ -154,7 +235,6 @@ export const DestinationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   );
 };
 
-// Custom hook to use the destination context
 export const useDestinations = () => {
   const context = useContext(DestinationContext);
   if (context === undefined) {
