@@ -40,7 +40,8 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
   isPremium = false
 }) => {
   const [expandedDays, setExpandedDays] = useState<Record<number, boolean>>({});
-  const { getTransportAmenities } = useTripPlanning();
+   // Import getTransportAmenities from utils instead of context
+  const { renderHotelInfo, getTransportAmenities } = require('../utils/tripPlanningUtils');
 
   // Calculate travel details based on the transport type
   const calculateTravelDetails = (type: string) => {
@@ -114,45 +115,52 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
   };
 
   // Render hotel information
-  const renderHotelInfo = (hotel: HotelType) => (
-    <div className="border rounded-lg p-3 bg-gray-50">
-      <div className="flex justify-between">
-        <div>
-          <p className="font-medium">{hotel.name}</p>
-          <div className="flex items-center mt-1 text-sm text-gray-600">
-            <MapPin className="h-4 w-4 mr-1" />
-            <span>{hotel.location.distanceFromCenter.toFixed(1)} km from center</span>
-          </div>
-          <div className="flex items-center mt-1">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Star
-                key={i}
-                className={`h-4 w-4 ${i < hotel.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-200'}`}
-              />
-            ))}
-          </div>
-        </div>
-        <div className="text-right">
-          <div className="text-sm font-medium">
-            ₹{hotel.pricePerPerson}/person
-          </div>
-          {hotel.checkInTime && (
-            <div className="text-xs text-gray-500 mt-1">
-              {hotel.checkInTime} - {hotel.checkOutTime}
+ // Use the imported renderHotelInfo function
+  const renderHotelInfoCard = (hotelInput: HotelType | string) => {
+    const hotel = renderHotelInfo(hotelInput);
+    
+    return (
+      <div className="border rounded-lg p-3 bg-gray-50">
+        <div className="flex justify-between">
+          <div>
+            <p className="font-medium">{hotel.name}</p>
+            {hotel.location && (
+              <div className="flex items-center mt-1 text-sm text-gray-600">
+                <MapPin className="h-4 w-4 mr-1" />
+                <span>{hotel.location.distanceFromCenter.toFixed(1)} km from center</span>
+              </div>
+            )}
+            <div className="flex items-center mt-1">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star
+                  key={i}
+                  className={`h-4 w-4 ${i < hotel.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-200'}`}
+                />
+              ))}
             </div>
-          )}
+          </div>
+          <div className="text-right">
+            <div className="text-sm font-medium">
+              ₹{hotel.pricePerPerson}/person
+            </div>
+            {hotel.checkInTime && (
+              <div className="text-xs text-gray-500 mt-1">
+                {hotel.checkInTime} - {hotel.checkOutTime}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1 mt-2">
+          {hotel.amenities.slice(0, 4).map((amenity, i) => (
+            <span key={i} className="text-xs bg-gray-100 px-2 py-0.5 rounded-full">
+              {amenity}
+            </span>
+          ))}
         </div>
       </div>
-      <div className="flex flex-wrap gap-1 mt-2">
-        {hotel.amenities.slice(0, 4).map((amenity, i) => (
-          <span key={i} className="text-xs bg-gray-100 px-2 py-0.5 rounded-full">
-            {amenity}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-
+    );
+  };
+  
   // Render crowd level indicator
   const renderCrowdLevel = (level: string, percentage: number) => {
     let color = 'text-green-600';
@@ -431,7 +439,7 @@ const TripItinerary: React.FC<TripItineraryProps> = ({
                         {day.hotels && day.hotels.length > 0 && (
                           <div>
                             <h4 className="font-medium text-sm mb-2">Recommended Hotel</h4>
-                            {renderHotelInfo(day.hotels[0])}
+                           {renderHotelInfoCard(day.hotels[0])}
                           </div>
                         )}
                         
