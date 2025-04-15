@@ -159,7 +159,7 @@ export const indiaDestinations: Destination[] = [
     city: 'Darjeeling',
     state: 'West Bengal',
     description: 'Known for its tea plantations and the panoramic views of the Himalayas, Darjeeling is a charming hill station with the iconic Darjeeling Himalayan Railway.',
-    image: 'https://t4.ftcdn.net/jpg/06/31/59/71/360_F_631597166_MmVeQAmVNv1zbT9vZJUsYzYfX3Lxf7G0.jpg',
+    image: 'https://i.ytimg.com/vi/PDNZW8ZQuos/maxresdefault.jpg',
     crowdData: {
       '00:00': 5,
       '04:00': 15,
